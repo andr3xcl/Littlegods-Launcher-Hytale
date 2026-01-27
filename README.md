@@ -56,3 +56,12 @@ Disponible para Windows 🪟, Linux 🐧 y macOS 🍎
 - 🎭 **Integración Discord RPC** - Muestra tu estado de juego en Discord
 
 ---
+🏷️ Unofficial Project – This is a community-made fan project and has no connection, approval, or partnership with Hypixel Studios or Hytale.
+
+⚠️ Use at Your Own Risk – The software is distributed without guarantees or warranties of any kind.
+
+📌 Liability Disclaimer – The creators are not responsible for any consequences arising from the use of this software.
+
+🚫 Removal Compliance – If Hypixel Studios or Hytale requests its removal, the project will be withdrawn without delay.
+
+🎮 Support the Original Game – When officially released, please support Hytale by obtaining it through legitimate channels.
