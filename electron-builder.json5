@@ -1,0 +1,73 @@
+// @see - https://www.electron.build/configuration/configuration
+{
+  "$schema": "https://raw.githubusercontent.com/electron-userland/electron-builder/master/packages/app-builder-lib/scheme.json",
+  "appId": "com.littlegods.launcher",
+  "publish": {
+    "provider": "github",
+    "owner": "andr3xcl",
+    "repo": "Littlegods-Launcher-Hytale"
+  },
+  "icon": "build/icon",
+  "asar": true,
+  "productName": "LittleGods Launcher",
+  "copyright": "Copyright © 2026 LittleGods",
+  "directories": {
+    "output": "release/${version}"
+  },
+  "files": [
+    "dist",
+    "dist-electron"
+  ],
+  "mac": {
+    "icon": "build/icon",
+    "target": [
+      "dmg"
+    ],
+    "artifactName": "${name}-installer.${ext}"
+  },
+  "win": {
+    "icon": "build/icon",
+    "target": [
+      {
+        "target": "nsis",
+        "arch": [
+          "x64"
+        ]
+      }
+    ],
+    "artifactName": "${name}-setup.${ext}"
+  },
+  "nsis": {
+    "oneClick": false,
+    "perMachine": false,
+    "allowToChangeInstallationDirectory": true,
+    // Keep user worlds and launcher data on uninstall and during upgrades
+    "deleteAppDataOnUninstall": false,
+    "allowElevation": true
+  },
+  "linux": {
+    "icon": "build/icon",
+    "executableName": "littlegods-launcher",
+    "target": [
+      "AppImage",
+      "deb",
+      "flatpak",
+      "tar.gz",
+      "rpm"
+    ],
+    "artifactName": "${name}.${ext}",
+    "category": "Game",
+    "desktop": {
+      // ignore not allowed properties, docs says another way to set them but it doesn't work
+      "Name": "LittleGods Launcher",
+      "Comment": "The best Hytale Launcher by LittleGods",
+      "Terminal": "false",
+      "Categories": "Game;",
+      "StartupWMClass": "LittleGods Launcher"
+    }
+  },
+  "flatpak": {
+    "runtimeVersion": "23.08",
+    "baseVersion": "23.08"
+  }
+}
