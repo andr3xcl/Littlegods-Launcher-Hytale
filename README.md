@@ -7,14 +7,6 @@ Disponible para **Windows 🪟**, **Linux 🐧** y **macOS 🍎**
 
 ---
 
-## 📌 Información Importante
-
-> **Software Propietario**
-
-Este es un software propietario exclusivo de **LittleGods**.  
-El código fuente **no está disponible públicamente**.  
-**Todos los derechos reservados.**
-
 ---
 
 ## 📸 Capturas de Pantalla  
