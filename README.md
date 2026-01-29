@@ -7,7 +7,7 @@ Disponible para **Windows 🪟**, **Linux 🐧** y **macOS 🍎**
 
 ---
 
-![Version](https://img.shields.io/badge/version-2.2.0-blue?style=for-the-badge)
+![Version](https://img.shields.io/badge/version-2.3.0-blue?style=for-the-badge)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-green?style=for-the-badge)
 ![License](https://img.shields.io/badge/license-MIT-red?style=for-the-badge)
 
