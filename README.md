@@ -10,19 +10,28 @@ Disponible para **Windows 🪟**, **Linux 🐧** y **macOS 🍎**
 ![Version](https://img.shields.io/badge/version-2.3.0-blue?style=for-the-badge)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-green?style=for-the-badge)
 ![License](https://img.shields.io/badge/license-MIT-red?style=for-the-badge)
+<img width="1026" height="640" alt="image" src="https://github.com/user-attachments/assets/d522870b-f8d1-46e9-a25b-ce4ad5ec0687" />
+<img width="1026" height="640" alt="image" src="https://github.com/user-attachments/assets/44f99ea8-1d58-42e1-8502-ea6f7b12651d" />
+<img width="1026" height="640" alt="image" src="https://github.com/user-attachments/assets/e7f75ca1-cc29-4316-9345-b2077b763008" />
+<img width="1026" height="640" alt="image" src="https://github.com/user-attachments/assets/1d39387b-a849-4384-8e68-e1f0f623c453" />
+<img width="1026" height="640" alt="image" src="https://github.com/user-attachments/assets/5fb08bb6-f28e-47a6-96e8-82d20858834a" />
+<img width="1026" height="640" alt="image" src="https://github.com/user-attachments/assets/6db67f6c-8a5a-4c6a-8353-4df41b93c87b" />
+<img width="1026" height="640" alt="image" src="https://github.com/user-attachments/assets/099c3e94-e00f-4573-9017-0f2c79919bfc" />
+<img width="1026" height="640" alt="image" src="https://github.com/user-attachments/assets/d22f8685-e7bf-4718-bf4b-22388b73534b" />
+<img width="1026" height="640" alt="image" src="https://github.com/user-attachments/assets/c979cac5-3341-45cc-bc63-2fdd34570ed0" />
+<img width="1026" height="640" alt="image" src="https://github.com/user-attachments/assets/59ba9c37-80c3-4c04-a370-f51c0715bf5d" />
+<img width="1026" height="640" alt="image" src="https://github.com/user-attachments/assets/1f07dbd0-cfb6-44c0-a0ab-23e253736626" />
+<img width="1026" height="640" alt="image" src="https://github.com/user-attachments/assets/093f0df5-b809-4729-a694-16c6dfc785a6" />
+<img width="1026" height="640" alt="image" src="https://github.com/user-attachments/assets/36a93a4e-22fc-43c2-aea8-ce654e2d0c12" />
+<img width="1026" height="640" alt="image" src="https://github.com/user-attachments/assets/9e5cce37-a11a-44a9-86ed-1683ec3019e1" />
+<img width="1026" height="640" alt="image" src="https://github.com/user-attachments/assets/3e33d92d-1689-43c4-b579-ca1fee0b51ba" />
 
 ---
 
 ## 📸 Capturas de Pantalla  
 
 
-![Screenshot 4](https://github.com/user-attachments/assets/3473ebb1-4bda-4071-8f5d-d60a9f55f512)
-
-![Screenshot 3](https://github.com/user-attachments/assets/4c49eeae-e47e-4205-8cbf-e44f0fcb9185)
-
-![Screenshot 2](https://github.com/user-attachments/assets/86e514be-31ca-4355-9748-84ca9f4d90f2)
-
-![Screenshot 1](https://github.com/user-attachments/assets/66721542-eca5-4421-9a7f-7f6b2ae308d3)
+<img width="1026" height="640" alt="image" src="https://github.com/user-attachments/assets/3b264c55-ce02-42d9-a369-3cd27d44b13f" />
 
 🖥️ *Interfaz moderna y elegante diseñada para ofrecer la mejor experiencia de usuario.*
 
