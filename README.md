@@ -4,6 +4,10 @@
 **Multiplataforma · Actualizaciones Automáticas · Integración con Discord**
 
 Disponible para **Windows 🪟**, **Linux 🐧** y **macOS 🍎**
+## ingles
+If you find any bugs in the Windows distribution, please don’t hesitate to report them, as this entire launcher was developed on Linux and then ported to Windows. If you notice any visual issues or elements that are not displaying correctly, please let me know. Thank you very much.
+## Spanish
+Si encuentras algun bug en la distribucion de Windows, por favor no dudes en informarlo, ya que todo este launcher fue desarrollado en Linux y luego portado a Windows. Si notas problemas visuales o elementos que no se muestran correctamente, hazmelo saber.
 
 ---
 
@@ -31,53 +35,48 @@ Disponible para **Windows 🪟**, **Linux 🐧** y **macOS 🍎**
 
 ---
 
-## 📸 Capturas de Pantalla  
-
-
-<img width="1026" height="640" alt="image" src="https://github.com/user-attachments/assets/3b264c55-ce02-42d9-a369-3cd27d44b13f" />
-
-🖥️ *Interfaz moderna y elegante diseñada para ofrecer la mejor experiencia de usuario.*
+🖥️ *Modern and elegant interface designed to deliver the best user experience.*
 
 ---
 
-## ✨ Características Principales
+## ✨ Key Features
 
-### 🎯 Funcionalidades Core
+### 🎯 Core Functionality
 
-| Característica | Descripción |
-|----------------|------------|
-| 🔄 Actualizaciones Inteligentes | Verificación y actualización automática de versiones del juego |
-| 💾 Preservación de Datos | Copias de seguridad automáticas de mundos y configuraciones |
-| 🌐 Multiplataforma Total | Soporte para Windows, Linux (X11/Wayland) y macOS |
-| ☕ Gestión de Java | Detección e instalación automática del runtime de Java |
-| 🎮 Soporte Multijugador | Cliente multijugador integrado |
-| 🎨 Interfaz Premium | Tema oscuro con animaciones fluidas |
-
----
-
-### 🛡️ Características Avanzadas
-
-- 📁 **Instalación Personalizada** – Elige tu propio directorio de instalación  
-- 🔍 **Detección Inteligente** – Reconocimiento automático del juego y dependencias  
-- 🗂️ **Gestión de Mods** – Sistema integrado para administrar mods  
-- 📰 **Feed de Noticias** – Mantente informado con noticias de Hytale  
-- 🎭 **Integración Discord RPC** – Muestra tu estado de juego en Discord  
+| Feature | Description |
+|--------|------------|
+| 🔄 Smart Updates | Automatic game version checking and updating |
+| 💾 Data Preservation | Automatic backups of worlds and configurations |
+| 🌐 Full Cross-Platform Support | Compatible with Windows, Linux (X11/Wayland), and macOS |
+| ☕ Java Management | Automatic detection and installation of the Java runtime |
+| 🎮 Multiplayer Support | Built-in multiplayer client |
+| 🎨 Premium Interface | Dark theme with smooth animations |
 
 ---
 
-## ⚠️ Aviso Legal
+### 🛡️ Advanced Features
+
+- 📁 **Custom Installation** – Choose your own installation directory  
+- 🔍 **Smart Detection** – Automatic detection of the game and its dependencies  
+- 🗂️ **Mod Management** – Integrated system to manage mods  
+- 📰 **News Feed** – Stay up to date with the latest Hytale news  
+- 🎭 **Discord RPC Integration** – Display your in-game status on Discord  
+
+---
+
+## ⚠️ Legal Notice
 
 🏷️ **Unofficial Project**  
-Este es un proyecto creado por la comunidad y no tiene relación, aprobación ni asociación con **Hypixel Studios** o **Hytale**.
+This is a community-created fan project and is not affiliated with, approved by, or associated with **Hypixel Studios** or **Hytale**.
 
 ⚠️ **Use at Your Own Risk**  
-El software se proporciona **“tal cual”**, sin garantías de ningún tipo.
+This software is provided **“as is”**, without any warranties of any kind.
 
 📌 **Liability Disclaimer**  
-Los creadores no se responsabilizan por daños, pérdidas o consecuencias derivadas del uso de este software.
+The creators are not responsible for any damages, losses, or consequences resulting from the use of this software.
 
 🚫 **Removal Compliance**  
-Si Hypixel Studios o Hytale solicitan su eliminación, el proyecto será retirado inmediatamente.
+If Hypixel Studios or Hytale requests its removal, the project will be taken down immediately.
 
 🎮 **Support the Original Game**  
-Cuando Hytale sea lanzado oficialmente, apóyalo adquiriéndolo por medios legítimos.
+When Hytale is officially released, please support it by purchasing it through legitimate channels.
