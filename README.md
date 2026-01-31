@@ -12,7 +12,8 @@ Si encuentras algun bug en la distribucion de Windows, por favor no dudes en inf
 ---
 
 ![Version](https://img.shields.io/badge/version-3.5.0-blue?style=for-the-badge)
-![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-green?style=for-the-badge)
+![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-green?style=for-the-badge)
+
 ![License](https://img.shields.io/badge/license-MIT-red?style=for-the-badge)
 
 <img width="1026" height="640" alt="Captura desde 2026-01-30 02-22-10" src="https://github.com/user-attachments/assets/de56c1c4-8284-4c5d-b778-b873c476290b" />
