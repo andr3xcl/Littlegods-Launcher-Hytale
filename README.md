@@ -3,7 +3,7 @@
 
 **Multiplataforma · Actualizaciones Automáticas · Integración con Discord**
 
-Disponible para **Windows 🪟**, **Linux 🐧** y **macOS 🍎**
+Disponible para **Windows 🪟**, **Linux 🐧**
 ## ingles
 If you find any bugs in the Windows distribution, please don’t hesitate to report them, as this entire launcher was developed on Linux and then ported to Windows. If you notice any visual issues or elements that are not displaying correctly, please let me know. Thank you very much.
 ## Spanish
