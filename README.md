@@ -81,3 +81,9 @@ If Hypixel Studios or Hytale requests its removal, the project will be taken dow
 
 🎮 **Support the Original Game**  
 When Hytale is officially released, please support it by purchasing it through legitimate channels.
+
+
+This project was originally based on ButterLauncher (MIT-licensed) and builds upon its foundation by adding enhanced features and greater user customization. Unlike many other launchers, this version delivers a deeply immersive aesthetic tailored to the player, addressing aspects that other launchers often lack and significantly improving the overall user experience.
+
+Base project:
+https://github.com/vZylev/Butter-Launcher/
