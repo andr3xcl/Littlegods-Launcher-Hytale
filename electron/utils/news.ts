@@ -7,21 +7,23 @@ export interface NewsItem {
     imageUrl: string;
     type?: "NEWS";
     date?: string;
+    slug?: string;
+    body?: string;
 }
 
-const OFFICIAL_NEWS_URL = "http://examples/news.json";
-const HYTALE_BLOG_API = "https://hytale.com/api/blog/post/published";
+const OFFICIAL_NEWS_URL = "http://example.com/news.json";
+const HYTALE_BLOG_API = "http://example.com/api/blog/post/published";
 
 export async function getHytaleNews(): Promise<NewsItem[]> {
     const allNews: NewsItem[] = [];
 
-
+    
     const results = await Promise.allSettled([
         fetch(OFFICIAL_NEWS_URL, { headers: { "User-Agent": "Mozilla/5.0" } }).then(r => r.ok ? r.json() : null),
         fetch(HYTALE_BLOG_API, { headers: { "User-Agent": "Mozilla/5.0" } }).then(r => r.ok ? r.json() : null)
     ]);
 
-
+    
     if (results[0].status === "fulfilled" && results[0].value) {
         try {
             const data = results[0].value;
@@ -40,7 +42,7 @@ export async function getHytaleNews(): Promise<NewsItem[]> {
         }
     }
 
-
+    
     if (results[1].status === "fulfilled" && results[1].value) {
         try {
             const data = results[1].value;
@@ -51,7 +53,7 @@ export async function getHytaleNews(): Promise<NewsItem[]> {
                     const month = date.getUTCMonth() + 1;
                     const destUrl = `https://hytale.com/news/${year}/${month}/${post.slug}`;
 
-
+                    
                     const imageUrl = post.coverImage?.s3Key
                         ? `https://cdn.hytale.com/variants/blog_thumb_${post.coverImage.s3Key}`
                         : "";
@@ -62,7 +64,8 @@ export async function getHytaleNews(): Promise<NewsItem[]> {
                         destUrl,
                         imageUrl,
                         type: "NEWS" as const,
-                        date: "OFFICIAL"
+                        date: "OFFICIAL",
+                        slug: post.slug
                     };
                 });
                 allNews.push(...officialItems);
@@ -94,4 +97,17 @@ export async function getHytaleNews(): Promise<NewsItem[]> {
     });
 
     return uniqueNews;
+}
+
+export async function getHytaleNewsBody(slug: string): Promise<string | null> {
+    try {
+        const url = `https://hytale.com/api/blog/post/slug/${slug}`;
+        const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
+        if (!res.ok) return null;
+        const data = await res.json();
+        return data.body || null;
+    } catch (e) {
+        logger.error(`[News] Error fetching body for ${slug}:`, e);
+        return null;
+    }
 }

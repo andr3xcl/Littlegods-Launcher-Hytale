@@ -13,7 +13,6 @@ dist
 dist-electron
 dist-ssr
 *.local
-.env
 release
 
 # Editor directories and files

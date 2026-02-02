@@ -1,11 +1,12 @@
 {
   "name": "littlegods-launcher",
   "description": "The best Hytale Launcher by LittleGods",
-  "author": "Littlegods",
+  "author": "Littlegods <contact@littlegods.com>",
+  "homepage": "https://github.com/andr3xcl/Littlegods-Launcher-Hytale",
   "private": false,
   "license": "MIT",
-  "version": "1.0.9",
-  "build_date": "LittlegodsLauncher_2026-01-27",
+  "version": "3.5.0",
+  "build_date": "LittlegodsLauncher_2026-01-31",
   "type": "module",
   "main": "dist-electron/main.js",
   "scripts": {
@@ -16,17 +17,19 @@
     "release": "npm run typecheck && npm run build && electron-builder",
     "build:win": "npm run build && electron-builder --win",
     "build:linux": "npm run build && electron-builder --linux",
-    "build:all": "npm run build && electron-builder --win --linux",
+    "build:mac": "npm run build && electron-builder --mac",
+    "build:all": "npm run build && electron-builder --win --linux --mac",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview"
   },
   "dependencies": {
     "@kostya-main/discord-rpc": "^1.2.1",
-    "electron-updater": "^6.7.3",
+    "@types/three": "^0.182.0",
     "extract-zip": "^2.0.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "tar": "^7.5.3",
+    "three": "^0.182.0",
     "uuid": "^13.0.0"
   },
   "devDependencies": {

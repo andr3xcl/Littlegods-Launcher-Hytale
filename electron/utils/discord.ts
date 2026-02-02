@@ -3,7 +3,7 @@ import { logger } from "./logger";
 
 const dateElapsed = Date.now();
 
-const clientId = "1465546685160624221";
+const clientId = "YOUR_DISCORD_CLIENT_ID";
 const client = new Client({ clientId });
 
 let rpcActivity: SetActivity = {

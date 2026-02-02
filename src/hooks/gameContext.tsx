@@ -32,17 +32,10 @@ interface GameContextType {
   launching: boolean;
   gameLaunched: boolean;
   installGame: (version: GameVersion) => void;
-  launchGame: (version: GameVersion, username: string) => void;
+  launchGame: (version: GameVersion, username: string, uuid?: string) => void;
   checkForUpdates: (reason?: "startup" | "manual") => Promise<void>;
   startPendingOnlinePatch: () => void;
-  
-  launcherUpdateStatus: LauncherUpdateStatus;
-  launcherUpdateProgress: number;
-  launcherUpdateError: string | null;
-  quitAndInstallLauncher: () => void;
 }
-
-export type LauncherUpdateStatus = "none" | "checking" | "available" | "not-available" | "downloading" | "downloaded" | "error";
 
 export const GameContext = createContext<GameContextType | null>(null);
 
@@ -86,11 +79,6 @@ export const GameContextProvider = ({
   const [checkingUpdates, setCheckingUpdates] = useState(false);
   const [launching, setLaunching] = useState(false);
   const [gameLaunched, setGameLaunched] = useState(false);
-
-  
-  const [launcherUpdateStatus, setLauncherUpdateStatus] = useState<LauncherUpdateStatus>("none");
-  const [launcherUpdateProgress, setLauncherUpdateProgress] = useState(0);
-  const [launcherUpdateError, setLauncherUpdateError] = useState<string | null>(null);
 
   useEffect(() => {
     releaseVersionsRef.current = releaseVersions;
@@ -173,7 +161,7 @@ export const GameContextProvider = ({
   }, [gameDir, installingVersion]);
 
   const launchGame = useCallback(
-    (version: GameVersion, username: string) => {
+    (version: GameVersion, username: string, uuid?: string) => {
       if (!gameDir || !version.installed) return;
       setLaunching(true);
 
@@ -207,8 +195,7 @@ export const GameContextProvider = ({
         }
       });
 
-      const customUUID = (localStorage.getItem("customUUID") || "").trim();
-      const uuidArg = customUUID.length ? customUUID : null;
+      const uuidArg = uuid?.trim() || null;
 
       const linuxForcePipeWire = localStorage.getItem("linuxForcePipeWire") !== "false";
       const linuxUseNixShell = localStorage.getItem("linuxUseNixShell") === "true";
@@ -273,14 +260,34 @@ export const GameContextProvider = ({
           ? remotePre
           : preReleaseVersionsRef.current;
 
-        const nextRelease = releaseBase.map((v) => ({
-          ...v,
-          installed: isInstalled("release", v.build_index),
-        }));
-        const nextPre = preBase.map((v) => ({
-          ...v,
-          installed: isInstalled("pre-release", v.build_index),
-        }));
+        
+        const mergeInstalled = (base: GameVersion[], type: VersionType) => {
+          const next = base.map((v) => ({
+            ...v,
+            installed: isInstalled(type, v.build_index),
+          }));
+
+          
+          for (const item of installed) {
+            if (item.type !== type) continue;
+            if (next.some(v => v.build_index === item.build_index)) continue;
+
+            
+            next.push({
+              type: type,
+              build_index: item.build_index,
+              build_name: `Build-${item.build_index}`,
+              url: "", 
+              installed: true,
+              isLatest: false,
+            });
+          }
+
+          return next.sort((a, b) => b.build_index - a.build_index);
+        };
+
+        const nextRelease = mergeInstalled(releaseBase, "release");
+        const nextPre = mergeInstalled(preBase, "pre-release");
 
         setReleaseVersions(nextRelease);
         setPreReleaseVersions(nextPre);
@@ -513,22 +520,6 @@ export const GameContextProvider = ({
 
       setGameDir(defaultGameDirectory);
     })();
-
-    
-    const onUpdaterStatus = (_: any, status: any) => {
-      setLauncherUpdateStatus(status.phase);
-      if (status.percent !== undefined) setLauncherUpdateProgress(status.percent);
-      if (status.error) setLauncherUpdateError(status.error);
-    };
-
-    window.ipcRenderer.on("updater:status", onUpdaterStatus);
-    return () => {
-      window.ipcRenderer.off("updater:status", onUpdaterStatus);
-    };
-  }, []);
-
-  const quitAndInstallLauncher = useCallback(() => {
-    window.ipcRenderer.send("updater:quit-and-install");
   }, []);
 
   useEffect(() => {
@@ -576,10 +567,6 @@ export const GameContextProvider = ({
         launchGame,
         checkForUpdates,
         startPendingOnlinePatch: () => { },
-        launcherUpdateStatus,
-        launcherUpdateProgress,
-        launcherUpdateError,
-        quitAndInstallLauncher,
       }}
     >
       {children}

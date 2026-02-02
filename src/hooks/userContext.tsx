@@ -4,6 +4,7 @@ export interface UserProfile {
   id: string;
   username: string;
   uuid: string;
+  photo?: string;
 }
 
 interface UserContextType {

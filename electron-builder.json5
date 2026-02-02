@@ -16,12 +16,14 @@
   },
   "files": [
     "dist",
-    "dist-electron"
+    "dist-electron",
+    "raw"
   ],
   "mac": {
     "icon": "build/icon",
     "target": [
-      "dmg"
+      "dmg",
+      "zip"
     ],
     "artifactName": "${name}-installer.${ext}"
   },
@@ -46,14 +48,15 @@
     "allowElevation": true
   },
   "linux": {
+    "maintainer": "Littlegods <contact@littlegods.com>",
     "icon": "build/icon",
     "executableName": "littlegods-launcher",
     "target": [
       "AppImage",
       "deb",
-      "flatpak",
-      "tar.gz",
-      "rpm"
+      "rpm",
+      "pacman",
+      "tar.gz"
     ],
     "artifactName": "${name}.${ext}",
     "category": "Game",
@@ -66,8 +69,4 @@
       "StartupWMClass": "LittleGods Launcher"
     }
   },
-  "flatpak": {
-    "runtimeVersion": "23.08",
-    "baseVersion": "23.08"
-  }
 }

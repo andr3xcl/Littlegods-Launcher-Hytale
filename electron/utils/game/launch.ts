@@ -10,7 +10,7 @@ import { logger } from "../logger";
 import { getOnlinePatchState } from "./onlinePatch";
 import { fetchAuthTokens } from "./auth";
 import { resolveExistingInstallDir } from "./paths";
-import { checkNixInstalled } from "./nix";
+import { getNixShellPath, getNixBinDirs } from "./nix";
 
 const ensureExecutable = (filePath: string) => {
   if (process.platform === "win32") return;
@@ -235,18 +235,27 @@ export const launchGame = async (
 
       if (process.platform === "linux") {
         const shellNixPath = join(process.env.APP_ROOT || ".", "shell.nix");
-        const nixInstalled = checkNixInstalled();
+        const nixShellPath = getNixShellPath();
 
         
-        if (fs.existsSync(shellNixPath) && nixInstalled) {
+        if (fs.existsSync(shellNixPath) && nixShellPath) {
           logger.info("Wrapping launch with nix-shell using", shellNixPath);
+
+          
+          const nixBinDirs = getNixBinDirs();
+          if (nixBinDirs.length > 0) {
+            const extraPath = nixBinDirs.join(":");
+            env.PATH = env.PATH ? `${extraPath}:${env.PATH}` : extraPath;
+            logger.info("Injected Nix paths into PATH environment", { PATH: env.PATH });
+          }
+
           const fullCmd = `"${client}" ${args.map((a) => `"${a}"`).join(" ")}`;
-          spawnCmd = "nix-shell";
+          spawnCmd = nixShellPath;
           spawnArgs = [shellNixPath, "--run", fullCmd];
         } else {
-          if (options?.linuxUseNixShell && !nixInstalled) {
-            logger.warn("Nix-shell requested but Nix is not installed on the system.");
-          } else if (fs.existsSync(shellNixPath) && !nixInstalled) {
+          if (options?.linuxUseNixShell && !nixShellPath) {
+            logger.warn("Nix-shell requested but nix-shell binary not found on the system.");
+          } else if (fs.existsSync(shellNixPath) && !nixShellPath) {
             logger.info("shell.nix found but Nix is not installed. Launching normally.");
           }
         }

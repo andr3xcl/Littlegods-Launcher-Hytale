@@ -28,7 +28,7 @@ type JRE = {
   };
 };
 
-const JRE_URL = "https://launcher.hytale.com/version/release/jre.json";
+const JRE_URL = "http://example.com/jre.json";
 
 export const installJRE = async (gameDir: string, win: BrowserWindow) => {
   const os = process.platform;

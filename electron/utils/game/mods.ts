@@ -59,12 +59,12 @@ export const listInstalledMods = (baseDir: string): ModInfo[] => {
                 const filePath = path.join(dir, file);
                 const stats = fs.statSync(filePath);
 
-
+                
                 const savedMod = metadata[file];
                 if (savedMod) {
                     mods.push({ ...savedMod, enabled, fileSize: stats.size });
                 } else {
-
+                    
                     let name = file.replace(/\.(jar|zip)$/i, "");
                     name = name.replace(/-v?\d+\.[\d\.]+.*$/i, "");
                     name = name.replace(/[-_]/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
@@ -116,7 +116,7 @@ export const downloadMod = async (
 
         if (!downloadUrl && mod.curseForgeId && mod.curseForgeFileId) {
             logger.info(`[Mods] Fetching download URL from CurseForge API...`);
-            const apiKey = process.env.VITE_CURSEFORGE_API_KEY || "YOUR_CURSEFORGE_API_KEY_HERE";
+            const apiKey = "YOUR_FORGE_API_KEY";
             const res = await fetch(`https://api.curseforge.com/v1/mods/${mod.curseForgeId}/files/${mod.curseForgeFileId}`, {
                 headers: {
                     "x-api-key": apiKey,
@@ -174,7 +174,7 @@ export const downloadMod = async (
         fs.writeFileSync(filePath, buffer);
         logger.info(`[Mods] File written successfully: ${filePath}`);
 
-
+        
         if (fs.existsSync(filePath)) {
             const stats = fs.statSync(filePath);
             logger.info(`[Mods] Verified file exists with size: ${stats.size} bytes`);
@@ -182,7 +182,7 @@ export const downloadMod = async (
             throw new Error("File was not created successfully");
         }
 
-
+        
         const metadata = loadModMetadata(baseDir);
         metadata[fileName] = {
             id: mod.id,
@@ -234,7 +234,7 @@ export const uninstallMod = (baseDir: string, fileName: string): { success: bool
         if (fs.existsSync(modsPath)) fs.unlinkSync(modsPath);
         if (fs.existsSync(disabledPath)) fs.unlinkSync(disabledPath);
 
-
+        
         const metadata = loadModMetadata(baseDir);
         delete metadata[fileName];
         saveModMetadata(baseDir, metadata);

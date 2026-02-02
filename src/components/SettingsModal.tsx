@@ -1,10 +1,16 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { IconFolderOpen, IconX, IconWorld, IconTerminal2, IconRefresh, IconHistory } from "@tabler/icons-react";
+import { IconFolderOpen, IconX, IconTerminal2, IconRefresh, IconHistory, IconPalette, IconTypography, IconLoader2, IconPhoto } from "@tabler/icons-react";
 import { useGameContext } from "../hooks/gameContext";
 import { useI18n } from "../hooks/i18nContext";
 import { useUserContext } from "../hooks/userContext";
+import { useTheme } from "../hooks/themeContext";
+import { useSoundEffects } from "../hooks/useSoundEffects";
 import cn from "../utils/cn";
 import { Language } from "../utils/i18n";
+import FontPickerModal from "./FontPickerModal";
+import ThemePickerModal from "./ThemePickerModal";
+import MusicSoundModal from "./MusicSoundModal";
+import LoaderPickerModal from "./LoaderPickerModal";
 
 const SettingsModal: React.FC<{
   open: boolean;
@@ -17,24 +23,30 @@ const SettingsModal: React.FC<{
     checkForUpdates,
     checkingUpdates,
     installing,
-    launcherUpdateStatus,
-    launcherUpdateProgress,
-    launcherUpdateError,
-    quitAndInstallLauncher
   } = useGameContext();
   const { lang, setLang, t: trans } = useI18n();
   const { currentProfile, updateProfile } = useUserContext();
+  const { theme, setTheme, font, setFont } = useTheme();
+  const { playHoverSound, playSelectSound } = useSoundEffects();
   const t = trans.settings;
 
   const [nixInstalled, setNixInstalled] = useState(false);
   const [uninstallingNix, setUninstallingNix] = useState(false);
   const [showUninstallConfirm, setShowUninstallConfirm] = useState(false);
+  const [fontPickerOpen, setFontPickerOpen] = useState(false);
+  const [themePickerOpen, setThemePickerOpen] = useState(false);
+  const [musicModalOpen, setMusicModalOpen] = useState(false);
 
   const [customUUID, setCustomUUID] = useState<string>(currentProfile?.uuid || "");
   const [defaultUUID, setDefaultUUID] = useState<string>("");
   const [enableRPC, setEnableRPC] = useState<boolean>(false);
   const [showHistory, setShowHistory] = useState(false);
   const [uuidHistory, setUuidHistory] = useState<string[]>([]);
+  const [loaderStyle, setLoaderStyle] = useState<string>(localStorage.getItem("loaderStyle") || "premium");
+  const [loaderBg, setLoaderBg] = useState<string>(localStorage.getItem("loaderBg") || "none");
+  const [loaderPickerOpen, setLoaderPickerOpen] = useState(false);
+
+  const [activeTab, setActiveTab] = useState<"general" | "appearance">("general");
 
   const normalizedUUID = useMemo(() => {
     const raw = customUUID.trim();
@@ -132,6 +144,8 @@ const SettingsModal: React.FC<{
     }
   }, [enableRPC]);
 
+  
+
   const handleUninstallNix = async () => {
     setShowUninstallConfirm(false);
     setUninstallingNix(true);
@@ -154,183 +168,305 @@ const SettingsModal: React.FC<{
 
   return (
     <div
-      className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/80 backdrop-blur-md animate-fadeIn p-8"
+      className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fadeIn p-8"
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-[480px] glass-panel rounded-[56px] p-10 flex flex-col animate-slideUp shadow-huge max-h-[90vh] overflow-y-auto no-drag custom-scrollbar"
+        className="relative w-full max-w-[700px] gh-box bg-[var(--color-canvas-default)] flex flex-col animate-slideUp shadow-xl max-h-[85vh] overflow-hidden no-drag"
         onClick={(e) => e.stopPropagation()}
       >
-        <button
-          className="absolute top-10 right-10 w-11 h-11 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-gray-400 hover:text-white transition-all border border-white/5 z-[100] no-drag"
-          onClick={(e) => {
-            e.stopPropagation();
-            onClose();
-          }}
-        >
-          <IconX size={22} />
-        </button>
-
-        <div className="flex flex-col gap-1 mb-8">
-          <h2 className="text-2xl font-black text-white tracking-tight">{t.title}</h2>
-          <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest">{t.subtitle}</p>
+        <div className="flex items-center justify-between p-4 border-b border-[var(--color-border-default)] bg-[var(--color-canvas-subtle)]">
+          <h2 className="text-sm font-semibold">{t.title}</h2>
+          <button
+            className="text-[var(--color-fg-muted)] hover:text-[var(--color-fg-default)] transition-colors"
+            onClick={() => { onClose(); playSelectSound(); }}
+            onMouseEnter={playHoverSound}
+          >
+            <IconX size={16} />
+          </button>
         </div>
 
-        <div className="space-y-6">
+        <div className="flex flex-1 overflow-hidden">
           {}
-          <div className="space-y-3">
-            <span className="text-[9px] font-black tracking-widest uppercase text-gray-600 px-1">{t.game_dir}</span>
-            <div className="grid grid-cols-1 gap-2">
-              <button onClick={handleOpenGameDir} className="flex items-center justify-between bg-white/5 p-4 rounded-2xl hover:bg-white/10 group transition-all text-[11px] font-bold text-gray-300 border border-white/5 no-drag">
-                <span>{t.game_files}</span>
-                <IconFolderOpen size={16} className="text-blue-500 opacity-40 group-hover:opacity-100" />
-              </button>
-              <button onClick={handleOpenModDir} className="flex items-center justify-between bg-white/5 p-4 rounded-2xl hover:bg-white/10 group transition-all text-[11px] font-bold text-gray-300 border border-white/5 no-drag">
-                <span>{t.mod_dir}</span>
-                <IconFolderOpen size={16} className="text-blue-500 opacity-40 group-hover:opacity-100" />
-              </button>
-            </div>
-          </div>
-
-          {}
-          <div className="space-y-3">
-            <span className="text-[9px] font-black tracking-widest uppercase text-gray-600 px-1">{t.custom_uuid}</span>
-            <div className="flex flex-col gap-3">
-              <div className="relative group">
-                <input
-                  value={customUUID}
-                  onChange={(e) => setCustomUUID(e.target.value)}
-                  placeholder={defaultUUID || t.uuid_placeholder}
-                  className="w-full bg-white/5 border border-white/5 rounded-2xl pl-4 pr-12 py-4 text-[10px] font-bold text-white text-center outline-none focus:border-blue-500/50 focus:bg-white/10 no-drag transition-all"
-                />
-                <button
-                  onClick={() => setShowHistory(true)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-gray-500 hover:text-blue-400 no-drag transition-colors"
-                  title={t.uuid_history}
-                >
-                  <IconHistory size={16} />
-                </button>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  onClick={handleRandomUUID}
-                  className="flex items-center justify-center gap-2 py-3 bg-white/5 border border-white/5 rounded-xl text-[9px] font-black uppercase tracking-widest text-gray-400 hover:bg-white/10 hover:text-white transition-all no-drag active:scale-95"
-                >
-                  <IconRefresh size={14} />
-                  {t.random_uuid}
-                </button>
-                <button
-                  onClick={() => setCustomUUID("")}
-                  className="flex items-center justify-center gap-2 py-3 bg-white/5 border border-white/5 rounded-xl text-[9px] font-black uppercase tracking-widest text-red-500/60 hover:bg-red-500/10 hover:text-red-400 transition-all no-drag active:scale-95"
-                >
-                  <IconX size={14} />
-                  {t.clear_uuid}
-                </button>
-              </div>
-
-              <div className="flex items-center justify-between px-1">
-                <span className="text-[8px] text-gray-600 font-bold uppercase tracking-wider italic">
-                  {normalizedUUID === "__invalid__" ? "INVALID FORMAT" : (customUUID ? "Active ID" : "Default ID (v5)")}
-                </span>
-                <span className="text-[8px] font-mono text-gray-700 opacity-60">
-                  {customUUID ? "" : defaultUUID}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between p-5 rounded-[28px] bg-blue-600/10 border border-blue-500/20 no-drag">
-            <div className="flex flex-col gap-1">
-              <span className="text-[11px] font-black uppercase text-white">{t.discord_rpc}</span>
-              <span className="text-[8px] text-blue-400/60 font-bold uppercase">{t.discord_subtitle}</span>
-            </div>
-            <button onClick={() => setEnableRPC(!enableRPC)} className={cn("w-10 h-5 rounded-full transition-all relative p-1 shadow-inner no-drag", enableRPC ? "bg-blue-600" : "bg-gray-700")}>
-              <div className={cn("w-3 h-3 rounded-full bg-white transition-all shadow-sm", enableRPC ? "translate-x-5" : "translate-x-0")} />
+          <div className="w-48 border-r border-[var(--color-border-default)] bg-[var(--color-canvas-subtle)] p-2 space-y-1">
+            <button
+              onClick={() => { setActiveTab("general"); playSelectSound(); }}
+              onMouseEnter={playHoverSound}
+              className={cn(
+                "w-full text-left px-3 py-2 rounded-md text-xs font-medium transition-all flex items-center gap-2",
+                activeTab === "general" ? "bg-[var(--color-accent-emphasis)] text-white" : "text-[var(--color-fg-default)] hover:bg-[var(--color-btn-hover-bg)]"
+              )}
+            >
+              <IconFolderOpen size={14} />
+              {t.general}
+            </button>
+            <button
+              onClick={() => { setActiveTab("appearance"); playSelectSound(); }}
+              onMouseEnter={playHoverSound}
+              className={cn(
+                "w-full text-left px-3 py-2 rounded-md text-xs font-medium transition-all flex items-center gap-2",
+                activeTab === "appearance" ? "bg-[var(--color-accent-emphasis)] text-white" : "text-[var(--color-fg-default)] hover:bg-[var(--color-btn-hover-bg)]"
+              )}
+            >
+              <IconPalette size={14} />
+              {t.appearance}
             </button>
           </div>
 
-          <div className="flex items-center justify-between p-5 rounded-[28px] bg-white/5 border border-white/5 no-drag">
-            <div className="flex items-center gap-2">
-              <IconWorld size={16} className="text-gray-500" />
-              <span className="text-[11px] font-black uppercase text-white">{t.language}</span>
-            </div>
-            <div className="flex gap-1.5">
-              {(["en", "es", "pt"] as Language[]).map((l) => (
-                <button key={l} onClick={() => setLang(l)} className={cn("w-7 h-7 rounded-lg text-[9px] font-black uppercase transition-all shadow-sm no-drag", lang === l ? "bg-white text-gray-950" : "bg-white/5 text-gray-500 border border-white/5 hover:bg-white/10")}>
-                  {l}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {window.config.OS === "linux" && (
-            <div className="p-5 rounded-[28px] bg-red-600/5 border border-red-500/10 flex flex-col gap-4 no-drag">
-              <div className="flex items-center justify-between">
-                <div className="flex flex-col gap-1">
-                  <span className="text-[11px] font-black uppercase text-red-500/80">Gestión de Nix</span>
-                  <span className="text-[8px] text-gray-500 font-bold uppercase">{nixInstalled ? "Sistema listo" : "No detectado"}</span>
-                </div>
-                {nixInstalled && (
-                  <button onClick={() => setShowUninstallConfirm(true)} disabled={uninstallingNix || installing} className="px-5 py-2.5 bg-red-600/20 text-red-500 hover:bg-red-600/30 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all disabled:opacity-30 no-drag">
-                    {uninstallingNix ? t.nix_uninstalling : t.nix_uninstall}
-                  </button>
-                )}
-              </div>
-              {nixInstalled && uninstallingNix && onShowConsole && (
-                <button onClick={onShowConsole} className="w-full flex items-center justify-center gap-2 py-3 bg-blue-600/20 text-blue-400 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-blue-600/30 transition-all no-drag border border-blue-500/10">
-                  <IconTerminal2 size={14} />
-                  {t.nix_view_log.replace("{shell}", window.config.OS === "linux" ? trans.launcher.shell_bash : trans.launcher.shell_generic)}
-                </button>
-              )}
-            </div>
-          )}
-
           {}
-          {launcherUpdateStatus !== "none" && launcherUpdateStatus !== "not-available" && (
-            <div className="p-5 rounded-[28px] bg-blue-600/10 border border-blue-500/20 flex flex-col gap-3 no-drag">
-              <div className="flex items-center justify-between">
-                <div className="flex flex-col gap-1">
-                  <span className="text-[11px] font-black uppercase text-blue-400">Launcher Update</span>
-                  <span className="text-[8px] text-gray-500 font-bold uppercase italic">
-                    {launcherUpdateStatus === "checking" ? "Checking for updates..." :
-                      launcherUpdateStatus === "available" ? "New version found!" :
-                        launcherUpdateStatus === "downloading" ? `Downloading... ${Math.round(launcherUpdateProgress)}%` :
-                          launcherUpdateStatus === "downloaded" ? "Update ready to install" :
-                            launcherUpdateStatus === "error" ? `Error: ${launcherUpdateError}` : ""}
-                  </span>
+          <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-[var(--color-canvas-default)]">
+
+            {activeTab === "general" && (
+              <>
+                {}
+                <div className="space-y-3">
+                  <span className="text-xs font-semibold text-[var(--color-fg-default)] pb-2 border-b border-[var(--color-border-muted)] block">{t.game_dir}</span>
+                  <div className="grid grid-cols-1 gap-2">
+                    <button onClick={() => { handleOpenGameDir(); playSelectSound(); }} onMouseEnter={playHoverSound} className="gh-btn w-full justify-between flex items-center">
+                      <span>{t.game_files}</span>
+                      <IconFolderOpen size={14} className="opacity-60" />
+                    </button>
+                    <button onClick={() => { handleOpenModDir(); playSelectSound(); }} onMouseEnter={playHoverSound} className="gh-btn w-full justify-between flex items-center">
+                      <span>{t.mod_dir}</span>
+                      <IconFolderOpen size={14} className="opacity-60" />
+                    </button>
+                  </div>
                 </div>
-                {launcherUpdateStatus === "downloaded" && (
-                  <button
-                    onClick={quitAndInstallLauncher}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-blue-500 transition-all shadow-lg active:scale-95"
-                  >
-                    Restart
-                  </button>
+
+                {}
+                <div className="space-y-3">
+                  <span className="text-xs font-semibold text-[var(--color-fg-default)] pb-2 border-b border-[var(--color-border-muted)] block">{t.custom_uuid}</span>
+                  <div className="flex flex-col gap-3">
+                    <div className="relative group">
+                      <input
+                        value={customUUID}
+                        onChange={(e) => setCustomUUID(e.target.value)}
+                        placeholder={defaultUUID || t.uuid_placeholder}
+                        className="w-full bg-[var(--color-canvas-subtle)] border border-[var(--color-border-default)] rounded-md px-3 py-2 text-xs text-[var(--color-fg-default)] text-center outline-none focus:border-[var(--color-accent-fg)] focus:ring-1 focus:ring-[var(--color-accent-fg)] transition-all font-mono"
+                      />
+                      <button
+                        onClick={() => setShowHistory(true)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-[var(--color-fg-muted)] hover:text-[var(--color-accent-fg)] transition-colors"
+                        title={t.uuid_history}
+                        onMouseEnter={playHoverSound}
+                      >
+                        <IconHistory size={14} />
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <button onClick={() => { handleRandomUUID(); playSelectSound(); }} onMouseEnter={playHoverSound} className="gh-btn flex items-center justify-center gap-2">
+                        <IconRefresh size={14} />
+                        {t.random_uuid}
+                      </button>
+                      <button onClick={() => { setCustomUUID(""); playSelectSound(); }} onMouseEnter={playHoverSound} className="gh-btn gh-btn-danger flex items-center justify-center gap-2">
+                        <IconX size={14} />
+                        {t.clear_uuid}
+                      </button>
+                    </div>
+
+                    <div className="flex items-center justify-between px-1">
+                      <span className="text-[10px] text-[var(--color-fg-muted)] font-semibold uppercase">
+                        {normalizedUUID === "__invalid__" ? t.uuid_invalid : (customUUID ? t.uuid_active : t.uuid_default_v5)}
+                      </span>
+                      <span className="text-[10px] font-mono text-[var(--color-fg-muted)]">
+                        {normalizedUUID && normalizedUUID !== "__invalid__" ? normalizedUUID : defaultUUID}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {}
+                <div className="space-y-3">
+                  <span className="text-xs font-semibold text-[var(--color-fg-default)] pb-2 border-b border-[var(--color-border-muted)] block">{t.features}</span>
+
+                  <div className="flex items-center justify-between py-2">
+                    <div className="flex flex-col">
+                      <span className="text-xs font-medium text-[var(--color-fg-default)]">{t.discord_rpc}</span>
+                      <span className="text-[10px] text-[var(--color-fg-muted)]">{t.discord_subtitle}</span>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={enableRPC}
+                      onChange={() => setEnableRPC(!enableRPC)}
+                      className="accent-[var(--color-accent-emphasis)]"
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between py-2">
+                    <div className="flex flex-col">
+                      <span className="text-xs font-medium text-[var(--color-fg-default)]">{t.music_sound.title}</span>
+                      <span className="text-[10px] text-[var(--color-fg-muted)]">{t.music_sound.subtitle}</span>
+                    </div>
+                    <button
+                      onClick={() => { setMusicModalOpen(true); playSelectSound(); }}
+                      onMouseEnter={playHoverSound}
+                      className="gh-btn text-[10px] py-1 px-3"
+                    >
+                      {t.change}
+                    </button>
+                  </div>
+                </div>
+
+                {window.config.OS === "linux" && (
+                  <div className="space-y-3 pt-4 border-t border-[var(--color-border-muted)]">
+                    <div className="flex flex-col gap-2 p-3 bg-[var(--color-canvas-subtle)] border border-[var(--color-border-muted)] rounded-md">
+                      <span className="text-xs font-bold text-[var(--color-fg-default)]">{t.nix_management}</span>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] text-[var(--color-fg-muted)]">{nixInstalled ? t.nix_installed : t.nix_not_detected}</span>
+                        {nixInstalled && (
+                          <button onClick={() => setShowUninstallConfirm(true)} disabled={uninstallingNix || installing} className="gh-btn gh-btn-danger text-[10px] py-1">
+                            {uninstallingNix ? t.nix_uninstalling : t.nix_uninstall}
+                          </button>
+                        )}
+                      </div>
+                      {nixInstalled && uninstallingNix && onShowConsole && (
+                        <button onClick={onShowConsole} className="gh-btn text-[10px] py-1 flex items-center justify-center gap-2">
+                          <IconTerminal2 size={12} />
+                          {t.nix_view_log.replace("{shell}", "Nix")}
+                        </button>
+                      )}
+                    </div>
+                  </div>
                 )}
-              </div>
-              {launcherUpdateStatus === "downloading" && (
-                <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-blue-500 transition-all duration-300"
-                    style={{ width: `${launcherUpdateProgress}%` }}
-                  />
+              </>
+            )}
+
+            {activeTab === "appearance" && (
+              <div className="space-y-6">
+                {}
+                <div className="space-y-3">
+                  <span className="text-xs font-semibold text-[var(--color-fg-default)] pb-2 border-b border-[var(--color-border-muted)] block">{t.theme}</span>
+                  <div className="flex flex-col gap-3">
+                    <div className="p-4 bg-[var(--color-canvas-subtle)] border border-[var(--color-border-default)] rounded-md flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-[var(--color-canvas-default)] rounded border border-[var(--color-border-muted)]">
+                          <IconPalette size={20} className="text-[var(--color-fg-default)]" />
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-xs font-bold text-[var(--color-fg-default)]" style={{ textTransform: 'capitalize' }}>{theme.replace(/-/g, " ")}</span>
+                          <span className="text-[10px] text-[var(--color-fg-muted)]">{t.active_theme}</span>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => { setThemePickerOpen(true); playSelectSound(); }}
+                        onMouseEnter={playHoverSound}
+                        className="gh-btn text-xs font-semibold"
+                      >
+                        {t.change}
+                      </button>
+                    </div>
+                  </div>
                 </div>
-              )}
-            </div>
-          )}
+
+                {}
+                <div className="space-y-3">
+                  <span className="text-xs font-semibold text-[var(--color-fg-default)] pb-2 border-b border-[var(--color-border-muted)] block">{t.font_family}</span>
+
+                  <div className="flex flex-col gap-3">
+                    <div className="p-4 bg-[var(--color-canvas-subtle)] border border-[var(--color-border-default)] rounded-md flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-[var(--color-canvas-default)] rounded border border-[var(--color-border-muted)]">
+                          <IconTypography size={20} className="text-[var(--color-fg-default)]" />
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-xs font-bold text-[var(--color-fg-default)]">{font}</span>
+                          <span className="text-[10px] text-[var(--color-fg-muted)]">{t.active_font}</span>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => { setFontPickerOpen(true); playSelectSound(); }}
+                        onMouseEnter={playHoverSound}
+                        className="gh-btn text-xs font-semibold"
+                      >
+                        {t.change}
+                      </button>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <button onClick={() => { setFont("Inter"); playSelectSound(); }} onMouseEnter={playHoverSound} className={cn("gh-btn text-xs flex-1", font === "Inter" && "bg-[var(--color-btn-selected-bg)]")}>{t.font_default}</button>
+                      <button onClick={() => { setFont("System"); playSelectSound(); }} onMouseEnter={playHoverSound} className={cn("gh-btn text-xs flex-1", font === "System" && "bg-[var(--color-btn-selected-bg)]")}>{t.font_system}</button>
+                      <button onClick={() => { setFont("Mono"); playSelectSound(); }} onMouseEnter={playHoverSound} className={cn("gh-btn text-xs flex-1", font === "Mono" && "bg-[var(--color-btn-selected-bg)]")}>{t.font_mono}</button>
+                    </div>
+                  </div>
+                </div>
+
+                {}
+                <div className="space-y-3">
+                  <span className="text-xs font-semibold text-[var(--color-fg-default)] pb-2 border-b border-[var(--color-border-muted)] block">{t.loading_style}</span>
+                  <div className="flex flex-col gap-3">
+                    <div className="p-4 bg-[var(--color-canvas-subtle)] border border-[var(--color-border-default)] rounded-md flex flex-col gap-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-[var(--color-canvas-default)] rounded border border-[var(--color-border-muted)]">
+                            <IconLoader2 size={20} className="text-[var(--color-fg-default)]" />
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="text-xs font-bold text-[var(--color-fg-default)]">
+                              {(trans.settings.loading_styles as any)[loaderStyle] || loaderStyle}
+                            </span>
+                            <span className="text-[10px] text-[var(--color-fg-muted)] uppercase tracking-widest">{t.loading_style}</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <div className="flex flex-col items-end">
+                            <span className="text-xs font-bold text-[var(--color-fg-default)]">
+                              {(loaderBg && loaderBg.startsWith("data:image")) ? trans.settings.loading_bgs.custom : ((trans.settings.loading_bgs as any)[loaderBg] || loaderBg)}
+                            </span>
+                            <span className="text-[10px] text-[var(--color-fg-muted)] uppercase tracking-widest">{t.loading_bg}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => { setLoaderPickerOpen(true); playSelectSound(); }}
+                        onMouseEnter={playHoverSound}
+                        className="gh-btn w-full text-xs font-semibold flex items-center justify-center gap-2"
+                      >
+                        <IconPhoto size={14} />
+                        {t.change}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {}
+                <div className="space-y-3 pt-4 border-t border-[var(--color-border-muted)]">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-[var(--color-fg-default)]">{t.language}</span>
+                    <div className="flex bg-[var(--color-canvas-subtle)] rounded-md p-1 border border-[var(--color-border-default)]">
+                      {(["en", "es", "pt"] as Language[]).map((l) => (
+                        <button
+                          key={l}
+                          onClick={() => { setLang(l); playSelectSound(); }}
+                          onMouseEnter={playHoverSound}
+                          className={cn(
+                            "px-3 py-1 text-xs font-medium rounded transition-all",
+                            lang === l
+                              ? "bg-[var(--color-btn-selected-bg)] text-[var(--color-fg-default)] shadow-sm"
+                              : "text-[var(--color-fg-muted)] hover:text-[var(--color-fg-default)]"
+                          )}
+                        >
+                          {l.toUpperCase()}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            )}
+
+          </div>
         </div>
 
-        <div className="mt-8 flex items-center justify-between border-t border-white/5 pt-6">
-          <div className="flex flex-col">
-            <span className="text-[9px] font-bold tracking-widest text-gray-600 uppercase">{t.arch_version} {window.config.VERSION}</span>
-          </div>
-          <div className="flex gap-3">
-            <button disabled={checkingUpdates} onClick={() => checkForUpdates("manual")} className="px-5 py-2.5 border border-white/5 rounded-xl hover:bg-white/5 transition-all text-[9px] font-black uppercase tracking-widest text-gray-500 no-drag">
-              {checkingUpdates ? "..." : t.sync}
+        <div className="p-4 border-t border-[var(--color-border-default)] bg-[var(--color-canvas-subtle)] flex items-center justify-between">
+          <span className="text-xs text-[var(--color-fg-muted)]">Version {window.config.VERSION}</span>
+          <div className="flex gap-2">
+            <button disabled={checkingUpdates} onClick={() => { checkForUpdates("manual"); playSelectSound(); }} onMouseEnter={playHoverSound} className="gh-btn text-xs">
+              {checkingUpdates ? "Checking..." : t.sync}
             </button>
             {onLogout && (
-              <button onClick={onLogout} className="px-6 py-2.5 bg-white text-gray-950 hover:bg-gray-100 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all no-drag shadow-lg">
+              <button onClick={() => { onLogout(); playSelectSound(); }} onMouseEnter={playHoverSound} className="gh-btn gh-btn-danger text-xs">
                 {t.logout}
               </button>
             )}
@@ -340,52 +476,82 @@ const SettingsModal: React.FC<{
 
       {}
       {showHistory && (
-        <div className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/80 backdrop-blur-xl animate-fadeIn p-8" onClick={() => setShowHistory(false)}>
-          <div className="glass-panel max-w-sm w-full p-8 rounded-[48px] flex flex-col gap-6 animate-slideUp border border-blue-500/20 shadow-huge" onClick={(e) => e.stopPropagation()}>
-            <div className="flex flex-col gap-1 items-center mb-2">
-              <h3 className="text-xl font-black text-white tracking-tight">{t.history_title}</h3>
-              <p className="text-[9px] font-bold text-gray-600 uppercase tracking-widest">{t.history_subtitle}</p>
+        <div className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/50 backdrop-blur-sm p-8" onClick={() => setShowHistory(false)}>
+          <div className="gh-box w-full max-w-sm overflow-hidden shadow-xl animate-slideUp" onClick={(e) => e.stopPropagation()}>
+            <div className="gh-box-header flex items-center justify-between">
+              <h3 className="text-sm font-bold">{t.history_title}</h3>
+              <button onClick={() => { setShowHistory(false); playSelectSound(); }} onMouseEnter={playHoverSound}><IconX size={16} /></button>
             </div>
-
-            <div className="flex flex-col gap-2 max-h-[300px] overflow-y-auto custom-scrollbar pr-2">
+            <div className="p-0">
               {uuidHistory.length === 0 ? (
-                <div className="py-12 text-center text-gray-600 text-xs font-bold uppercase tracking-widest opacity-50">{t.history_empty}</div>
+                <div className="p-8 text-center text-xs text-[var(--color-fg-muted)]">{t.history_empty}</div>
               ) : (
-                uuidHistory.map((uuid, i) => (
-                  <button
-                    key={i}
-                    onClick={() => {
-                      setCustomUUID(uuid);
-                      setShowHistory(false);
-                    }}
-                    className="w-full p-4 bg-white/5 border border-white/5 rounded-2xl hover:bg-blue-600/10 hover:border-blue-500/30 transition-all text-[10px] font-mono text-blue-400/80 text-left truncate active:scale-[0.98]"
-                  >
-                    {uuid}
-                  </button>
-                ))
+                <div className="flex flex-col max-h-[300px] overflow-y-auto">
+                  {uuidHistory.map((uuid, i) => (
+                    <button
+                      key={i}
+                      onClick={() => {
+                        setCustomUUID(uuid);
+                        setShowHistory(false);
+                        playSelectSound();
+                      }}
+                      onMouseEnter={playHoverSound}
+                      className="text-left px-4 py-3 text-xs font-mono border-b border-[var(--color-border-muted)] last:border-0 hover:bg-[var(--color-canvas-subtle)] transition-colors"
+                    >
+                      {uuid}
+                    </button>
+                  ))}
+                </div>
               )}
             </div>
-
-            <button onClick={() => setShowHistory(false)} className="w-full py-4 bg-white text-gray-950 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-100 transition-all">Close</button>
           </div>
         </div>
       )}
 
       {}
       {showUninstallConfirm && (
-        <div className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/90 backdrop-blur-xl animate-fadeIn p-8" onClick={() => setShowUninstallConfirm(false)}>
-          <div className="glass-panel max-w-xs w-full p-10 rounded-[48px] flex flex-col gap-6 animate-slideUp border border-red-500/20 shadow-huge" onClick={(e) => e.stopPropagation()}>
-            <div className="flex flex-col gap-2">
-              <h3 className="text-xl font-black text-white tracking-tight text-center">¿Desinstalar Nix?</h3>
-              <p className="text-[11px] font-medium text-gray-500 leading-relaxed text-center">Esta acción eliminará <code className="text-blue-400">/nix</code> y toda su configuración.</p>
-            </div>
-            <div className="flex flex-col gap-2">
-              <button onClick={handleUninstallNix} className="w-full py-4 bg-red-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-red-500 transition-all shadow-xl shadow-red-500/40">Eliminar Todo</button>
-              <button onClick={() => setShowUninstallConfirm(false)} className="w-full py-3 text-[10px] font-black uppercase text-gray-500 hover:text-white transition-all">Cancelar</button>
+        <div className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/50 backdrop-blur-sm p-8" onClick={() => setShowUninstallConfirm(false)}>
+          <div className="gh-box w-full max-w-sm p-6 shadow-xl animate-slideUp" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-bold mb-2">{t.nix_confirm_title}</h3>
+            <p className="text-sm text-[var(--color-fg-muted)] mb-4">{t.nix_confirm_msg.replace("{path}", "/nix")}</p>
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setShowUninstallConfirm(false)} className="gh-btn">{trans.launcher.cancel}</button>
+              <button onClick={handleUninstallNix} className="gh-btn gh-btn-danger">{t.nix_uninstall}</button>
             </div>
           </div>
         </div>
       )}
+
+      <FontPickerModal
+        open={fontPickerOpen}
+        onClose={() => setFontPickerOpen(false)}
+        onSelect={setFont}
+        currentFont={font}
+      />
+      <ThemePickerModal
+        open={themePickerOpen}
+        onClose={() => setThemePickerOpen(false)}
+        onSelect={setTheme}
+        currentTheme={theme}
+      />
+      <MusicSoundModal
+        open={musicModalOpen}
+        onClose={() => setMusicModalOpen(false)}
+      />
+      <LoaderPickerModal
+        open={loaderPickerOpen}
+        onClose={() => setLoaderPickerOpen(false)}
+        onSelectStyle={(s) => {
+          setLoaderStyle(s);
+          localStorage.setItem("loaderStyle", s);
+        }}
+        onSelectBg={(b) => {
+          setLoaderBg(b);
+          localStorage.setItem("loaderBg", b);
+        }}
+        currentStyle={loaderStyle}
+        currentBg={loaderBg}
+      />
     </div>
   );
 };

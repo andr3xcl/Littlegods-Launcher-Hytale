@@ -4,23 +4,57 @@ import fs from "node:fs";
 import { logger } from "../logger";
 
 
+export const getNixBinDirs = (): string[] => {
+    return [
+        "/nix/var/nix/profiles/default/bin",
+        "/run/current-system/sw/bin",
+        "/usr/local/bin",
+        "/usr/bin",
+        `${process.env.HOME}/.nix-profile/bin`
+    ].filter(dir => fs.existsSync(dir));
+};
+
+
+export const getNixShellPath = (): string | null => {
+    if (process.platform !== "linux") return null;
+
+    
+    try {
+        const path = execSync("which nix-shell", { encoding: "utf8" }).trim();
+        if (path && fs.existsSync(path)) {
+            logger.info(`Found nix-shell via which: ${path}`);
+            return path;
+        }
+    } catch {
+        
+    }
+
+    
+    const commonPaths = getNixBinDirs().map(dir => `${dir}/nix-shell`);
+
+    for (const p of commonPaths) {
+        if (fs.existsSync(p)) {
+            logger.info(`Found nix-shell via fallback path: ${p}`);
+            return p;
+        }
+    }
+
+    logger.warn("nix-shell binary not found in common locations.");
+    return null;
+};
+
+
 export const checkNixInstalled = (): boolean => {
     if (process.platform !== "linux") return true;
 
     
-    let commandExists = false;
-    try {
-        execSync("nix --version", { stdio: "ignore" });
-        commandExists = true;
-    } catch {
-        commandExists = false;
-    }
+    if (getNixShellPath()) return true;
 
     
     const traces = ["/nix", "/etc/nix", "/etc/systemd/system/nix-daemon.service"];
     const traceExists = traces.some(path => fs.existsSync(path));
 
-    return commandExists || traceExists;
+    return traceExists;
 };
 
 

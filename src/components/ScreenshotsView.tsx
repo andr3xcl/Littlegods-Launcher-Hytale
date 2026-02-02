@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { IconPhoto, IconFolderOpen, IconRefresh, IconFolder } from "@tabler/icons-react";
 import { useI18n } from "../hooks/i18nContext";
+import ScreenshotModal from "./ScreenshotModal";
 
 interface Screenshot {
     name: string;
@@ -21,6 +22,7 @@ const ScreenshotsView: React.FC = () => {
     const [screenshots, setScreenshots] = useState<Screenshot[]>([]);
     const [loading, setLoading] = useState(false);
     const [folderPath, setFolderPath] = useState<string>("");
+    const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
 
     useEffect(() => {
         const saved = localStorage.getItem("screenshotsFolder");
@@ -100,7 +102,7 @@ const ScreenshotsView: React.FC = () => {
                         className="px-8 py-3 bg-blue-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-500 transition-all flex items-center gap-2 shadow-lg active:scale-95"
                     >
                         <IconFolder size={18} />
-                        {folderPath ? "Cambiar Carpeta" : t.select_folder}
+                        {folderPath ? trans.screenshots.select_folder : t.select_folder}
                     </button>
                 </div>
             </div>
@@ -110,7 +112,7 @@ const ScreenshotsView: React.FC = () => {
                 {!folderPath ? (
                     <div className="flex flex-col items-center justify-center py-32 gap-6">
                         <IconFolder size={64} className="text-gray-400 opacity-20" />
-                        <p className="text-sm font-black text-gray-400 uppercase tracking-widest opacity-60">Selecciona una carpeta</p>
+                        <p className="text-sm font-black text-gray-400 uppercase tracking-widest opacity-60">{t.select_folder}</p>
                     </div>
                 ) : loading && screenshots.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-32 gap-6">
@@ -126,6 +128,7 @@ const ScreenshotsView: React.FC = () => {
                         {screenshots.map((s, idx) => (
                             <div
                                 key={idx}
+                                onClick={() => setSelectedIndex(idx)}
                                 className="group relative aspect-video glass-card rounded-[32px] overflow-hidden cursor-pointer hover:shadow-2xl transition-all duration-500"
                             >
                                 <img
@@ -143,6 +146,15 @@ const ScreenshotsView: React.FC = () => {
                     </div>
                 )}
             </div>
+
+            {selectedIndex !== null && (
+                <ScreenshotModal
+                    screenshots={screenshots}
+                    currentIndex={selectedIndex}
+                    onClose={() => setSelectedIndex(null)}
+                    onNavigate={(index) => setSelectedIndex(index)}
+                />
+            )}
         </div>
     );
 };

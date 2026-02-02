@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useGameContext } from "../hooks/gameContext";
 import { useUserContext } from "../hooks/userContext";
 import { useI18n } from "../hooks/i18nContext";
+import { useMusic } from "../hooks/useMusic";
+import { useSoundEffects } from "../hooks/useSoundEffects";
 import DragBar from "./DragBar";
 import ProgressBar from "./ProgressBar";
 import {
@@ -15,14 +17,21 @@ import {
   IconPuzzle,
   IconDownload,
   IconPlayerPlay,
-  IconTerminal2
+  IconTerminal2,
+  IconServer,
+  IconWorld
 } from "@tabler/icons-react";
 import cn from "../utils/cn";
 import ConfirmModal from "./ConfirmModal";
 import SettingsModal from "./SettingsModal";
 import ConsoleModal from "./ConsoleModal";
 import ModsView from "./ModsView";
+import ServersView from "./ServersView";
+import SavesView from "./SavesView";
+import GameSettingsView from "./GameSettingsView";
 import ScreenshotsView from "./ScreenshotsView";
+import ProfileModal from "./ProfileModal";
+import NewsModal from "./NewsModal";
 import logo from "../assets/logo.png";
 
 type NewsItem = {
@@ -30,9 +39,11 @@ type NewsItem = {
   description: string;
   destUrl: string;
   imageUrl: string;
+  slug?: string;
+  date?: string;
 };
 
-const Launcher: React.FC<{ onLogout?: () => void }> = ({ onLogout }) => {
+const Launcher: React.FC<{ onLogout?: () => void; isOffline?: boolean }> = ({ onLogout, isOffline }) => {
   const {
     gameDir,
     versionType,
@@ -57,6 +68,9 @@ const Launcher: React.FC<{ onLogout?: () => void }> = ({ onLogout }) => {
   const { currentProfile } = useUserContext();
   const { t: trans } = useI18n();
   const t = trans.launcher;
+
+  const { isPlaying } = useMusic();
+  const { playHoverSound, playLaunchSound, playSelectSound, playErrorSound } = useSoundEffects();
 
   const username = currentProfile?.username || "Player";
 
@@ -83,12 +97,15 @@ const Launcher: React.FC<{ onLogout?: () => void }> = ({ onLogout }) => {
   const [patchOutdated, setPatchOutdated] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [versionToDelete, setVersionToDelete] = useState<any>(null);
-  const [activeTab, setActiveTab] = useState<"home" | "mods" | "screenshots">("home");
+  const [activeTab, setActiveTab] = useState<"home" | "mods" | "servers" | "saves" | "screenshots" | "game-settings">("home");
   const [nixInstalled, setNixInstalled] = useState(true);
   const [installingNix, setInstallingNix] = useState(false);
   const [logs, setLogs] = useState<string[]>([]);
   const [showConsole, setShowConsole] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
   const [nixWarningOpen, setNixWarningOpen] = useState(false);
+  const [selectedNews, setSelectedNews] = useState<NewsItem | null>(null);
+  const [newsOpen, setNewsOpen] = useState(false);
 
   const latestRelease =
     versionType === "release"
@@ -143,12 +160,23 @@ const Launcher: React.FC<{ onLogout?: () => void }> = ({ onLogout }) => {
 
   useEffect(() => {
     const load = async () => {
+      if (isOffline) {
+        playErrorSound();
+        setNewsItems([{
+          title: t.offline_mode,
+          description: t.offline_msg,
+          destUrl: "",
+          imageUrl: ""
+        }]);
+        return;
+      }
+
       try {
         const items = await window.ipcRenderer.invoke("news:get");
         if (items && items.length > 0) {
           const processedItems = items.map((item: any) => ({
             ...item,
-            imageUrl: item.imageUrl ? `https://corsproxy.io/?${encodeURIComponent(item.imageUrl)}` : ""
+            imageUrl: item.imageUrl ? `media://${encodeURIComponent(item.imageUrl)}` : ""
           }));
           setNewsItems(processedItems);
         }
@@ -165,7 +193,7 @@ const Launcher: React.FC<{ onLogout?: () => void }> = ({ onLogout }) => {
       };
       checkNix();
     }
-  }, []);
+  }, [isOffline, t]);
 
   useEffect(() => {
     const onPatched = () => refreshOnlinePatchHealth();
@@ -197,13 +225,13 @@ const Launcher: React.FC<{ onLogout?: () => void }> = ({ onLogout }) => {
     if (!selected.installed) {
       installGame(selected);
     } else {
-      launchGame(selected, username);
+      launchGame(selected, username, currentProfile?.uuid);
     }
-  }, [selected, username, installGame, launchGame]);
+  }, [selected, username, installGame, launchGame, currentProfile]);
 
   const handleLaunch = useCallback(() => {
     if (!selected || !username) return;
-    if (window.config.OS === "linux" && !nixInstalled) {
+    if (window.config.OS === "linux" && !nixInstalled && selected.installed) {
       setNixWarningOpen(true);
       return;
     }
@@ -232,7 +260,7 @@ const Launcher: React.FC<{ onLogout?: () => void }> = ({ onLogout }) => {
       if (success) {
         setNixInstalled(true);
       } else {
-        alert("La instalación automática falló. Por favor, revisa los mensajes en la terminal o instala Nix manualmente.");
+        alert(t.nix_fail);
       }
     } catch (err) {
       console.error("Nix installation error:", err);
@@ -250,19 +278,34 @@ const Launcher: React.FC<{ onLogout?: () => void }> = ({ onLogout }) => {
     <div className="w-full h-full min-h-screen flex animate-fadeIn bg-transparent">
       {}
       <div className="w-64 glass-sidebar flex flex-col z-20">
-        <div className="p-8 border-b border-white/5 flex flex-col items-center">
-          <img src={logo} alt="LittleGods Logo" className="w-32 h-auto mb-2 drop-shadow-2xl" />
-          <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Hytale Launcher</p>
+        <div className="p-6 border-b border-white/5 flex flex-col items-center">
+          <div className={cn(
+            "perspective-1000 group/logo cursor-pointer transition-all duration-500",
+            isPlaying && "music-rainbow"
+          )}>
+            <img
+              src={logo}
+              alt="LittleGods Logo"
+              className="w-20 h-auto mb-2 drop-shadow-2xl transition-all duration-500 ease-out 
+                         group-hover/logo:[transform:rotateX(15deg)_rotateY(-15deg)_scale(1.05)] 
+                         group-active/logo:[transform:rotateX(25deg)_rotateY(-25deg)_scale(0.95)]"
+            />
+          </div>
+          <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-2">Hytale Launcher</p>
         </div>
 
-        <nav className="flex-1 p-4 space-y-1">
+        <nav className="flex-1 p-4 space-y-1 overflow-y-auto custom-scrollbar">
           <button
-            onClick={() => setActiveTab("home")}
+            onClick={() => {
+              setActiveTab("home");
+              playSelectSound();
+            }}
+            onMouseEnter={playHoverSound}
             className={cn(
               "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-black uppercase tracking-widest transition-all",
               activeTab === "home"
-                ? "bg-blue-600 text-white shadow-[0_4px_16px_rgba(37,99,235,0.4)]"
-                : "text-gray-400 hover:bg-white/5 hover:text-white"
+                ? "bg-[var(--color-accent-emphasis)] text-white shadow-md mx-2 border border-white/10"
+                : "text-[var(--color-fg-muted)] hover:bg-[var(--color-canvas-subtle)] hover:text-[var(--color-fg-default)] hover:translate-x-1"
             )}
           >
             <IconHome size={18} />
@@ -270,12 +313,16 @@ const Launcher: React.FC<{ onLogout?: () => void }> = ({ onLogout }) => {
           </button>
 
           <button
-            onClick={() => setActiveTab("mods")}
+            onClick={() => {
+              setActiveTab("mods");
+              playSelectSound();
+            }}
+            onMouseEnter={playHoverSound}
             className={cn(
               "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-black uppercase tracking-widest transition-all",
               activeTab === "mods"
-                ? "bg-blue-600 text-white shadow-[0_4px_16px_rgba(37,99,235,0.4)]"
-                : "text-gray-400 hover:bg-white/5 hover:text-white"
+                ? "bg-[var(--color-accent-emphasis)] text-white shadow-md mx-2 border border-white/10"
+                : "text-[var(--color-fg-muted)] hover:bg-[var(--color-canvas-subtle)] hover:text-[var(--color-fg-default)] hover:translate-x-1"
             )}
           >
             <IconPuzzle size={18} />
@@ -283,12 +330,67 @@ const Launcher: React.FC<{ onLogout?: () => void }> = ({ onLogout }) => {
           </button>
 
           <button
-            onClick={() => setActiveTab("screenshots")}
+            onClick={() => {
+              setActiveTab("servers");
+              playSelectSound();
+            }}
+            onMouseEnter={playHoverSound}
+            className={cn(
+              "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-black uppercase tracking-widest transition-all",
+              activeTab === "servers"
+                ? "bg-[var(--color-accent-emphasis)] text-white shadow-md mx-2 border border-white/10"
+                : "text-[var(--color-fg-muted)] hover:bg-[var(--color-canvas-subtle)] hover:text-[var(--color-fg-default)] hover:translate-x-1"
+            )}
+          >
+            <IconServer size={18} />
+            {t.servers}
+          </button>
+
+          <button
+            onClick={() => {
+              setActiveTab("saves");
+              playSelectSound();
+            }}
+            onMouseEnter={playHoverSound}
+            className={cn(
+              "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-black uppercase tracking-widest transition-all",
+              activeTab === "saves"
+                ? "bg-[var(--color-accent-emphasis)] text-white shadow-md mx-2 border border-white/10"
+                : "text-[var(--color-fg-muted)] hover:bg-[var(--color-canvas-subtle)] hover:text-[var(--color-fg-default)] hover:translate-x-1"
+            )}
+          >
+            <IconWorld size={18} />
+            {t.saves}
+          </button>
+
+          <button
+            onClick={() => {
+              setActiveTab("game-settings");
+              playSelectSound();
+            }}
+            onMouseEnter={playHoverSound}
+            className={cn(
+              "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-black uppercase tracking-widest transition-all",
+              activeTab === "game-settings"
+                ? "bg-[var(--color-accent-emphasis)] text-white shadow-md mx-2 border border-white/10"
+                : "text-[var(--color-fg-muted)] hover:bg-[var(--color-canvas-subtle)] hover:text-[var(--color-fg-default)] hover:translate-x-1"
+            )}
+          >
+            <IconSettings size={18} />
+            {t.game_settings}
+          </button>
+
+          <button
+            onClick={() => {
+              setActiveTab("screenshots");
+              playSelectSound();
+            }}
+            onMouseEnter={playHoverSound}
             className={cn(
               "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-black uppercase tracking-widest transition-all",
               activeTab === "screenshots"
-                ? "bg-blue-600 text-white shadow-[0_4px_16px_rgba(37,99,235,0.4)]"
-                : "text-gray-400 hover:bg-white/5 hover:text-white"
+                ? "bg-[var(--color-accent-emphasis)] text-white shadow-md mx-2 border border-white/10"
+                : "text-[var(--color-fg-muted)] hover:bg-[var(--color-canvas-subtle)] hover:text-[var(--color-fg-default)] hover:translate-x-1"
             )}
           >
             <IconPhoto size={18} />
@@ -296,42 +398,72 @@ const Launcher: React.FC<{ onLogout?: () => void }> = ({ onLogout }) => {
           </button>
         </nav>
 
-        <div className="p-4 border-t border-white/5 space-y-1">
-          <div className="flex items-center gap-3 px-4 py-3 mb-2 bg-white/5 rounded-xl border border-white/5">
-            <div className="w-2.5 h-2.5 bg-green-500 rounded-full shadow-[0_0_8px_rgba(34,197,94,0.6)] animate-pulse"></div>
-            <span className="text-xs font-black text-gray-200 tracking-wider truncate">{username}</span>
+        <div className="p-4 border-t border-[var(--color-border-default)] space-y-1 mt-auto bg-[var(--color-canvas-default)]">
+          <div
+            onClick={() => { setProfileOpen(true); playSelectSound(); }}
+            onMouseEnter={playHoverSound}
+            className="flex items-center gap-3 px-3 py-2.5 mb-2 bg-[var(--color-canvas-subtle)] rounded-xl border border-[var(--color-border-muted)] hover:bg-[var(--color-btn-hover-bg)] hover:border-[var(--color-accent-emphasis)]/30 transition-all cursor-pointer group"
+          >
+            <div className="relative">
+              <div className="w-10 h-10 rounded-full overflow-hidden bg-black/20 border-2 border-[var(--color-accent-emphasis)]/30 group-hover:border-[var(--color-accent-emphasis)] transition-all flex items-center justify-center">
+                {currentProfile?.photo ? (
+                  <img src={currentProfile.photo} alt="Avatar" className="w-full h-full object-cover" />
+                ) : (
+                  <img src="media://raw/icon_profile/default_profile.png" alt="Avatar" className="w-full h-full object-cover opacity-50" />
+                )}
+              </div>
+              <div className={cn(
+                "absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-[var(--color-canvas-default)]",
+                isOffline ? "bg-[var(--color-fg-muted)]" : "bg-[var(--color-success-fg)] shadow-[0_0_10px_var(--color-success-fg)]"
+              )}></div>
+            </div>
+            <div className="flex flex-col flex-1 min-w-0">
+              <span className="text-xs font-black text-[var(--color-fg-default)] tracking-wider truncate uppercase">{username}</span>
+              <span className="text-[8px] font-black text-[var(--color-fg-muted)] uppercase tracking-widest leading-none">
+                {isOffline ? "Offline" : "Online"}
+              </span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={() => window.config?.openExternal?.("https://dsc.gg/littlegods")}
+              onMouseEnter={playHoverSound}
+              className="flex flex-col items-center justify-center gap-2 p-3 rounded-xl text-[8px] font-black uppercase tracking-widest text-[var(--color-fg-muted)] hover:bg-[var(--color-canvas-subtle)] hover:text-[var(--color-accent-fg)] transition-all no-drag border border-[var(--color-border-muted)]"
+            >
+              <IconBrandDiscord size={20} />
+              Discord
+            </button>
+
+            <button
+              onClick={() => {
+                setSettingsOpen(true);
+                playSelectSound();
+              }}
+              onMouseEnter={playHoverSound}
+              className="flex flex-col items-center justify-center gap-2 p-3 rounded-xl text-[8px] font-black uppercase tracking-widest text-[var(--color-fg-muted)] hover:bg-[var(--color-canvas-subtle)] hover:text-[var(--color-fg-default)] transition-all border border-[var(--color-border-muted)]"
+            >
+              <IconSettings size={20} />
+              {t.settings}
+            </button>
           </div>
 
           <button
-            onClick={() => window.config?.openExternal?.("https://dsc.gg/littlegods")}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-black uppercase tracking-widest text-gray-400 hover:bg-white/5 hover:text-white transition-all no-drag"
-          >
-            <IconBrandDiscord size={18} />
-            {t.discord}
-          </button>
-
-          <button
             onClick={() => setShowConsole(true)}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-black uppercase tracking-widest text-gray-400 hover:bg-white/5 hover:text-white transition-all"
+            onMouseEnter={playHoverSound}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest text-[var(--color-fg-muted)] hover:bg-[var(--color-canvas-subtle)] hover:text-[var(--color-fg-default)] transition-all"
           >
-            <IconTerminal2 size={18} />
+            <IconTerminal2 size={16} />
             {window.config.OS === "linux" ? t.shell_bash : t.shell_generic}
-          </button>
-
-          <button
-            onClick={() => setSettingsOpen(true)}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-black uppercase tracking-widest text-gray-400 hover:bg-white/5 hover:text-white transition-all"
-          >
-            <IconSettings size={18} />
-            {t.settings}
           </button>
 
           {onLogout && (
             <button
               onClick={onLogout}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-black uppercase tracking-widest text-red-500 hover:bg-red-50 transition-all font-black"
+              onMouseEnter={playHoverSound}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest text-[var(--color-danger-emphasis)] hover:bg-[var(--color-danger-emphasis)]/10 transition-all"
             >
-              <IconLogout size={18} />
+              <IconLogout size={16} />
               {t.logout}
             </button>
           )}
@@ -339,34 +471,34 @@ const Launcher: React.FC<{ onLogout?: () => void }> = ({ onLogout }) => {
       </div>
 
       {}
-      <div className="flex-1 flex flex-col h-screen relative">
+      <div className="flex-1 flex flex-col h-screen relative bg-[var(--color-canvas-default)]">
         <DragBar />
 
         <main className="flex-1 overflow-y-auto custom-scrollbar">
           {activeTab === "home" ? (
-            <div className="max-w-5xl mx-auto p-12 space-y-10 animate-slideUp">
+            <div className="max-w-5xl mx-auto p-8 space-y-6 animate-slideUp">
               {}
-              <div className="glass-panel rounded-[48px] p-8">
-                <div className="flex items-center justify-between mb-8">
+              <div className="gh-box p-6">
+                <div className="flex items-center justify-between mb-6">
                   <div>
-                    <h3 className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] mb-2">{t.selected_version}</h3>
+                    <h3 className="text-xs font-semibold text-[var(--color-fg-muted)] uppercase tracking-wide mb-1">{t.selected_version}</h3>
                     <button
                       onClick={() => setVersionsOpen(!versionsOpen)}
-                      className="flex items-center gap-3 text-2xl font-black text-white hover:text-blue-500 transition-all tracking-tight"
+                      className="flex items-center gap-2 text-xl font-bold text-[var(--color-fg-default)] hover:text-[var(--color-accent-fg)] transition-all"
                     >
                       {selectedLabel}
-                      <IconChevronDown size={24} className={cn("transition-transform duration-300", versionsOpen && "rotate-180")} />
+                      <IconChevronDown size={20} className={cn("transition-transform duration-300", versionsOpen && "rotate-180")} />
                     </button>
                   </div>
 
-                  <div className="flex p-1 bg-white/5 rounded-2xl">
+                  <div className="flex bg-[var(--color-canvas-subtle)] rounded-md border border-[var(--color-border-default)]">
                     <button
                       onClick={() => setVersionType("release")}
                       className={cn(
-                        "px-8 py-2.5 text-xs font-black uppercase tracking-widest transition-all rounded-xl",
+                        "px-4 py-1.5 text-xs font-semibold rounded-l-md transition-all border-r border-[var(--color-border-default)]",
                         versionType === "release"
-                          ? "bg-white/10 text-white shadow-sm"
-                          : "text-gray-500 hover:text-gray-300"
+                          ? "bg-[var(--color-btn-selected-bg)] text-[var(--color-fg-default)]"
+                          : "text-[var(--color-fg-muted)] hover:text-[var(--color-fg-default)] hover:bg-[var(--color-btn-hover-bg)]"
                       )}
                     >
                       {t.stable}
@@ -374,10 +506,10 @@ const Launcher: React.FC<{ onLogout?: () => void }> = ({ onLogout }) => {
                     <button
                       onClick={() => setVersionType("pre-release")}
                       className={cn(
-                        "px-8 py-2.5 text-xs font-black uppercase tracking-widest transition-all rounded-xl",
+                        "px-4 py-1.5 text-xs font-semibold rounded-r-md transition-all",
                         versionType === "pre-release"
-                          ? "bg-white/10 text-white shadow-sm"
-                          : "text-gray-500 hover:text-gray-300"
+                          ? "bg-[var(--color-btn-selected-bg)] text-[var(--color-fg-default)]"
+                          : "text-[var(--color-fg-muted)] hover:text-[var(--color-fg-default)] hover:bg-[var(--color-btn-hover-bg)]"
                       )}
                     >
                       {t.beta}
@@ -387,7 +519,7 @@ const Launcher: React.FC<{ onLogout?: () => void }> = ({ onLogout }) => {
 
                 {}
                 {versionsOpen && (
-                  <div className="border-t border-white/5 pt-8 pb-4 space-y-2 max-h-72 overflow-y-auto animate-slideIn">
+                  <div className="border border-[var(--color-border-default)] rounded-md mb-6 max-h-72 overflow-y-auto animate-slideIn bg-[var(--color-canvas-subtle)]">
                     {availableVersions.map((v, idx) => (
                       <div
                         key={`${v.type}:${v.build_index}`}
@@ -396,18 +528,18 @@ const Launcher: React.FC<{ onLogout?: () => void }> = ({ onLogout }) => {
                           setVersionsOpen(false);
                         }}
                         className={cn(
-                          "flex items-center justify-between p-5 rounded-2xl cursor-pointer transition-all border",
+                          "flex items-center justify-between p-3 cursor-pointer transition-all border-b border-[var(--color-border-muted)] last:border-0",
                           selectedVersion === idx
-                            ? "bg-white/10 border-blue-500/50 shadow-sm"
-                            : "bg-white/5 border-white/5 hover:border-white/10"
+                            ? "bg-[var(--color-btn-selected-bg)]"
+                            : "hover:bg-[var(--color-btn-hover-bg)]"
                         )}
                       >
-                        <div className="flex flex-col gap-1">
-                          <span className="text-sm font-black text-white tracking-tight">
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-sm font-semibold text-[var(--color-fg-default)]">
                             {v.build_name || `Build-${v.build_index}`}
                           </span>
                           {v.installed && (
-                            <span className="text-[9px] font-black text-blue-400 uppercase tracking-widest">{t.installed}</span>
+                            <span className="text-[10px] font-medium text-[var(--color-accent-fg)] uppercase">Installed</span>
                           )}
                         </div>
                         {v.installed && (
@@ -416,9 +548,9 @@ const Launcher: React.FC<{ onLogout?: () => void }> = ({ onLogout }) => {
                               e.stopPropagation();
                               deleteVersion(v);
                             }}
-                            className="p-2.5 text-red-400 hover:bg-red-400/10 rounded-xl transition-all"
+                            className="p-1.5 text-[var(--color-danger-emphasis)] hover:bg-[var(--color-canvas-default)] rounded transition-all"
                           >
-                            <IconTrash size={18} />
+                            <IconTrash size={16} />
                           </button>
                         )}
                       </div>
@@ -428,13 +560,13 @@ const Launcher: React.FC<{ onLogout?: () => void }> = ({ onLogout }) => {
 
                 {}
                 {(installing || patchingOnline || installingNix) ? (
-                  <div className="mt-8 p-6 bg-white/5 rounded-[32px] border border-white/5 flex flex-col gap-4">
+                  <div className="mt-4 p-4 bg-[var(--color-canvas-subtle)] rounded-md border border-[var(--color-border-default)] flex flex-col gap-3">
                     <div className="flex justify-between items-center">
-                      <span className="text-xs font-black text-gray-300 uppercase tracking-widest">
-                        {installing ? "Downloading..." : t.nix_installing}
+                      <span className="text-xs font-bold text-[var(--color-fg-default)] uppercase">
+                        {installing ? t.downloading : (patchingOnline ? t.patch_installing : t.nix_installing)}
                       </span>
                       {!installingNix && (
-                        <span className="text-xs font-black text-blue-400">
+                        <span className="text-xs font-bold text-[var(--color-accent-fg)]">
                           {Math.round((installing ? installProgress?.percent : patchingOnline ? patchProgress?.percent : -1) || 0)}%
                         </span>
                       )}
@@ -443,9 +575,9 @@ const Launcher: React.FC<{ onLogout?: () => void }> = ({ onLogout }) => {
                     {installingNix ? (
                       <button
                         onClick={() => setShowConsole(true)}
-                        className="w-full py-4 bg-white/5 border border-white/10 rounded-2xl text-[10px] font-black uppercase tracking-widest text-blue-400 hover:bg-white/10 transition-all flex items-center justify-center gap-2"
+                        className="gh-btn w-full flex items-center justify-center gap-2"
                       >
-                        <IconTerminal2 size={16} />
+                        <IconTerminal2 size={14} />
                         {t.nix_bash_log.replace("{shell}", window.config.OS === "linux" ? t.shell_bash : t.shell_generic)}
                       </button>
                     ) : (
@@ -455,40 +587,43 @@ const Launcher: React.FC<{ onLogout?: () => void }> = ({ onLogout }) => {
                     {installing && installProgress?.phase === "pwr-download" && (
                       <button
                         onClick={cancelBuildDownload}
-                        className="mt-4 text-[10px] font-black text-red-500 hover:text-red-700 uppercase tracking-widest transition-all"
+                        className="mt-2 text-xs font-semibold text-[var(--color-danger-emphasis)] hover:underline"
                       >
-                        {t.cancel}
+                        {t.cancel_download}
                       </button>
                     )}
                   </div>
                 ) : (
-                  <div className="mt-8 flex gap-4">
+                  <div className="mt-6 flex gap-3">
                     {!nixInstalled && window.config.OS === "linux" && (
                       <button
                         onClick={handleInstallNix}
                         disabled={installingNix}
-                        className="flex-1 bg-white/5 border border-white/10 text-white px-8 py-5 rounded-2xl text-[11px] font-black uppercase tracking-widest hover:bg-white/10 transition-all active:scale-95 flex items-center justify-center gap-2"
+                        className="gh-btn flex-1 flex items-center justify-center gap-2 py-2"
                       >
-                        <IconDownload size={18} />
+                        <IconDownload size={16} />
                         {t.install} Nix
                       </button>
                     )}
                     <button
-                      onClick={needsFixClient ? fixClient : handleLaunch}
+                      onClick={() => {
+                        needsFixClient ? fixClient() : handleLaunch();
+                        playLaunchSound();
+                      }}
                       disabled={launching || gameLaunched}
-                      className="flex-[2] bg-blue-600 text-white px-10 py-5 rounded-2xl text-sm font-black uppercase tracking-[0.2em] hover:bg-blue-500 transition-all shadow-[0_8px_32px_rgba(59,130,246,0.3)] flex items-center justify-center gap-3 active:scale-95"
+                      className="flex-[2] gh-btn gh-btn-primary py-2.5 text-sm font-bold flex items-center justify-center gap-2 shadow-sm"
                     >
                       {needsFixClient ? t.fix_client : (
                         availableVersions[selectedVersion]?.installed ? (
                           gameLaunched ? t.running : (
                             <>
-                              <IconPlayerPlay size={20} />
+                              <IconPlayerPlay size={18} />
                               {t.launch}
                             </>
                           )
                         ) : (
                           <>
-                            <IconDownload size={20} />
+                            <IconDownload size={18} />
                             {t.install}
                           </>
                         )
@@ -498,15 +633,19 @@ const Launcher: React.FC<{ onLogout?: () => void }> = ({ onLogout }) => {
                     {patchAvailable && !needsFixClient && (
                       <button
                         onClick={() => {
-                          if (onlinePatchEnabled && patchOutdated) return startOnlinePatch();
+                          const onPatchAvailable = () => {
+                            const ok = confirm(t.patch_available_msg);
+                            if (ok) startOnlinePatch();
+                          };
+                          if (onlinePatchEnabled && patchOutdated) return onPatchAvailable();
                           if (onlinePatchEnabled) return disableOnlinePatch();
                           setPatchConfirmOpen(true);
                         }}
                         className={cn(
-                          "flex-1 px-8 py-5 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all border-2 active:scale-95",
+                          "gh-btn flex-1 py-2 text-xs font-bold uppercase tracking-wide",
                           onlinePatchEnabled
-                            ? "bg-transparent border-blue-500 text-blue-400 hover:bg-blue-500/10"
-                            : "bg-white/5 border-transparent text-gray-300 hover:bg-white/10"
+                            ? "text-[var(--color-accent-fg)] border-[var(--color-accent-emphasis)]"
+                            : ""
                         )}
                       >
                         {onlinePatchEnabled ? (patchOutdated ? t.patch_update : t.patched) : t.patch_enable}
@@ -518,45 +657,52 @@ const Launcher: React.FC<{ onLogout?: () => void }> = ({ onLogout }) => {
 
               {}
               {showUpdate && (
-                <div className="bg-blue-600/80 border border-white/10 rounded-[32px] p-6 flex items-center justify-between shadow-xl backdrop-blur-md animate-slideIn">
-                  <div className="flex items-center gap-5">
-                    <div className="w-14 h-14 bg-white/10 rounded-2xl flex items-center justify-center backdrop-blur-md">
-                      <IconDownload size={28} className="text-white" />
+                <div className="bg-[var(--color-canvas-subtle)] border-l-4 border-[var(--color-accent-emphasis)] p-4 flex items-center justify-between shadow-sm">
+                  <div className="flex items-center gap-4">
+                    <div className="p-2 bg-[var(--color-accent-emphasis)] rounded-full text-white">
+                      <IconDownload size={20} />
                     </div>
                     <div>
-                      <h4 className="text-lg font-black text-white tracking-tight">{t.update_available}</h4>
-                      <p className="text-xs font-bold text-white/50 uppercase tracking-widest">{latestRelease?.build_name}</p>
+                      <h4 className="text-sm font-bold text-[var(--color-fg-default)]">{t.update_available}</h4>
+                      <p className="text-xs text-[var(--color-fg-muted)]">{latestRelease?.build_name}</p>
                     </div>
                   </div>
-                  <div className="flex gap-4">
-                    <button onClick={dismissUpdateForNow} className="px-6 py-3 text-xs font-black text-white/80 hover:text-white uppercase tracking-widest transition-all">{t.dismiss}</button>
-                    <button onClick={handleLaunch} className="px-8 py-3 bg-white text-blue-600 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-blue-50 transition-all shadow-lg">{t.install}</button>
+                  <div className="flex gap-2">
+                    <button onClick={dismissUpdateForNow} className="gh-btn text-xs">{t.dismiss}</button>
+                    <button onClick={handleLaunch} className="gh-btn gh-btn-primary text-xs">{t.install}</button>
                   </div>
                 </div>
               )}
 
               {}
-              <div className="space-y-6 pb-12">
-                <h3 className="text-2xl font-black text-white tracking-tight">{t.news}</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="space-y-4 pb-12">
+                <h3 className="text-lg font-bold text-[var(--color-fg-default)] pb-2 border-b border-[var(--color-border-muted)]">{t.news}</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {newsItems.slice(0, 10).map((item, idx) => (
                     <div
                       key={idx}
-                      onClick={() => item.destUrl && window.config?.openExternal?.(item.destUrl)}
-                      className="group relative glass-card rounded-[40px] overflow-hidden cursor-pointer hover:shadow-2xl hover:-translate-y-1 transition-all duration-500"
+                      onClick={() => {
+                        if (item.slug) {
+                          setSelectedNews(item);
+                          setNewsOpen(true);
+                          playSelectSound();
+                        } else if (item.destUrl) {
+                          window.config?.openExternal?.(item.destUrl);
+                        }
+                      }}
+                      className="group relative gh-box overflow-hidden cursor-pointer hover:shadow-md transition-all active:scale-[0.98]"
                     >
-                      <div className="aspect-[16/10] w-full overflow-hidden bg-gray-100 relative">
+                      <div className="aspect-[16/9] w-full overflow-hidden bg-[var(--color-canvas-subtle)] relative border-b border-[var(--color-border-muted)]">
                         {item.imageUrl && (
-                          <img src={item.imageUrl} alt={item.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" />
+                          <img src={item.imageUrl} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                         )}
-                        <div className="absolute top-0 left-0 right-0 p-5 flex justify-between items-start bg-gradient-to-b from-black/60 to-transparent">
-                          <span className="px-3 py-1.5 bg-blue-600 text-[9px] font-black text-white uppercase rounded-lg tracking-widest shadow-lg">NEWS</span>
-                          <span className="text-[9px] font-black text-white uppercase tracking-[0.2em] drop-shadow-md">RECENT</span>
+                        <div className="absolute top-2 left-2">
+                          <span className="px-2 py-1 bg-[var(--color-accent-emphasis)] text-[10px] font-bold text-white rounded shadow-sm uppercase">News</span>
                         </div>
                       </div>
-                      <div className="p-8">
-                        <h4 className="text-xl font-black text-white mb-3 group-hover:text-blue-400 transition-colors tracking-tight line-clamp-1">{item.title}</h4>
-                        <p className="text-sm text-gray-400 font-medium line-clamp-2 leading-relaxed opacity-80">{item.description}</p>
+                      <div className="p-4">
+                        <h4 className="text-base font-bold text-[var(--color-fg-default)] mb-2 group-hover:text-[var(--color-accent-fg)] transition-colors line-clamp-1">{item.title}</h4>
+                        <p className="text-xs text-[var(--color-fg-muted)] line-clamp-2 leading-relaxed">{item.description}</p>
                       </div>
                     </div>
                   ))}
@@ -564,7 +710,13 @@ const Launcher: React.FC<{ onLogout?: () => void }> = ({ onLogout }) => {
               </div>
             </div>
           ) : activeTab === "mods" ? (
-            <ModsView onBack={() => setActiveTab("home")} />
+            <ModsView onBack={() => setActiveTab("home")} isOffline={isOffline} />
+          ) : activeTab === "servers" ? (
+            <ServersView />
+          ) : activeTab === "saves" ? (
+            <SavesView />
+          ) : activeTab === "game-settings" ? (
+            <GameSettingsView />
           ) : (
             <ScreenshotsView />
           )}
@@ -586,6 +738,17 @@ const Launcher: React.FC<{ onLogout?: () => void }> = ({ onLogout }) => {
         onClear={() => setLogs([])}
       />
 
+      <ProfileModal
+        open={profileOpen}
+        onClose={() => setProfileOpen(false)}
+      />
+
+      <NewsModal
+        open={newsOpen}
+        onClose={() => setNewsOpen(false)}
+        item={selectedNews as any}
+      />
+
       {}
       {nixWarningOpen && (
         <div
@@ -593,33 +756,34 @@ const Launcher: React.FC<{ onLogout?: () => void }> = ({ onLogout }) => {
           onClick={() => setNixWarningOpen(false)}
         >
           <div
-            className="glass-panel max-w-md w-full p-12 rounded-[56px] flex flex-col gap-8 animate-slideUp border border-blue-500/20 shadow-huge"
+            className="glass-panel max-w-md w-full p-12 rounded-[56px] flex flex-col gap-8 animate-slideUp border border-[var(--color-accent-emphasis)]/20 shadow-huge"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex flex-col gap-4">
-              <div className="w-16 h-16 rounded-3xl bg-blue-600/20 flex items-center justify-center text-blue-400 border border-blue-500/20 mb-2">
+              <div className="w-16 h-16 rounded-3xl bg-[var(--color-accent-emphasis)]/20 flex items-center justify-center text-[var(--color-accent-fg)] border border-[var(--color-accent-emphasis)]/20 mb-2">
                 <IconPlayerPlay size={32} />
               </div>
               <div className="flex flex-col gap-2">
                 <h3 className="text-3xl font-black text-white tracking-tight leading-tight">{t.nix_greeting_title.replace("{username}", username)}</h3>
-                <p className="text-sm font-medium text-gray-400 leading-relaxed">
+                <p className="text-sm font-medium text-[var(--color-fg-muted)] leading-relaxed">
                   {t.nix_greeting_msg}
                 </p>
               </div>
             </div>
 
             <div className="flex flex-col gap-3">
-              <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest text-center px-4 mb-2">{t.nix_greeting_thanks}</p>
+              <p className="text-[10px] font-black text-[var(--color-fg-muted)] uppercase tracking-widest text-center px-4 mb-2">{t.nix_greeting_thanks}</p>
               <button
                 onClick={() => {
                   setNixWarningOpen(false);
                   executeLaunch();
+                  playLaunchSound();
                 }}
-                className="w-full py-5 bg-blue-600 text-white rounded-[24px] text-xs font-black uppercase tracking-widest hover:bg-blue-500 transition-all shadow-xl shadow-blue-500/40 active:scale-95"
+                className="w-full py-5 gh-btn gh-btn-primary rounded-[24px] text-xs font-black uppercase tracking-widest transition-all shadow-xl shadow-[color-mix(in_srgb,var(--color-accent-emphasis),transparent_60%)] active:scale-95"
               >
                 {t.nix_greeting_continue}
               </button>
-              <button onClick={() => setNixWarningOpen(false)} className="w-full py-4 text-[9px] font-black text-gray-500 uppercase tracking-widest hover:text-white transition-all">{t.nix_greeting_close}</button>
+              <button onClick={() => setNixWarningOpen(false)} className="w-full py-4 text-[9px] font-black text-[var(--color-fg-muted)] uppercase tracking-widest hover:text-white transition-all">{t.nix_greeting_close}</button>
             </div>
           </div>
         </div>
@@ -628,9 +792,9 @@ const Launcher: React.FC<{ onLogout?: () => void }> = ({ onLogout }) => {
       {versionToDelete && (
         <ConfirmModal
           open={deleteConfirmOpen}
-          title="Delete Version"
+          title={t.delete_version_title}
           message={trans.settings.delete_confirm.replace("{name}", versionToDelete.build_name ?? `Build-${versionToDelete.build_index}`)}
-          confirmText="Delete"
+          confirmText={t.delete}
           onCancel={() => setDeleteConfirmOpen(false)}
           onConfirm={async () => {
             const v = versionToDelete;
@@ -648,18 +812,15 @@ const Launcher: React.FC<{ onLogout?: () => void }> = ({ onLogout }) => {
       )}
 
       {patchConfirmOpen && selected && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-8" onClick={() => setPatchConfirmOpen(false)}>
-          <div className="glass-panel max-w-lg w-full p-12 rounded-[56px] animate-slideUp" onClick={(e) => e.stopPropagation()}>
-            <h2 className="text-3xl font-black text-white mb-4 tracking-tight">{t.patch_enable}</h2>
-            <p className="text-sm font-medium text-gray-400 mb-8 leading-relaxed">
-              {selected.patch_note?.trim() || "This will enable online patching for this version. You can disable it later."}
-            </p>
-            <div className="flex gap-4">
-              <button onClick={() => setPatchConfirmOpen(false)} className="flex-1 py-4 bg-white/5 text-gray-300 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-white/10 transition-all">Cancel</button>
-              <button onClick={() => { setPatchConfirmOpen(false); startOnlinePatch(); }} className="flex-1 py-4 bg-blue-600 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-blue-500 transition-all shadow-xl shadow-blue-500/30">Confirm</button>
-            </div>
-          </div>
-        </div>
+        <ConfirmModal
+          open={patchConfirmOpen}
+          title={t.patch_enable}
+          message={selected.patch_note?.trim() || t.patch_confirm_msg}
+          confirmText={t.confirm}
+          cancelText={t.cancel}
+          onCancel={() => setPatchConfirmOpen(false)}
+          onConfirm={() => { setPatchConfirmOpen(false); startOnlinePatch(); }}
+        />
       )}
     </div>
   );

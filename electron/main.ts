@@ -9,11 +9,11 @@ import {
   protocol,
   dialog,
 } from "electron";
-import { autoUpdater } from "electron-updater";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import fs from "node:fs";
 import os from "node:os";
+import crypto from "node:crypto";
 import { META_DIRECTORY } from "./utils/const";
 import { logger } from "./utils/logger";
 
@@ -58,12 +58,15 @@ import {
   uninstallMod,
   ModInfo,
 } from "./utils/game/mods";
-import { getHytaleNews } from "./utils/news";
+import { getHytaleNews, getHytaleNewsBody } from "./utils/news";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 process.env.APP_ROOT = path.join(__dirname, "..");
 
+protocol.registerSchemesAsPrivileged([
+  { scheme: "media", privileges: { secure: true, bypassCSP: true, allowServiceWorkers: true, supportFetchAPI: true, stream: true } }
+]);
 
 app.on("ready", () => {
   app.setAppUserModelId("com.littlegods.launcher");
@@ -271,6 +274,13 @@ function createWindow() {
     }
   });
 
+  win.on("focus", () => win?.webContents.send("window-focus"));
+  win.on("blur", () => win?.webContents.send("window-blur"));
+  win.on("minimize", () => win?.webContents.send("window-minimize"));
+  win.on("restore", () => win?.webContents.send("window-restore"));
+  win.on("hide", () => win?.webContents.send("window-hide"));
+  win.on("show", () => win?.webContents.send("window-show"));
+
   if (VITE_DEV_SERVER_URL) {
     win.loadURL(VITE_DEV_SERVER_URL);
   } else {
@@ -281,19 +291,54 @@ function createWindow() {
 app.whenReady().then(() => {
   protocol.handle("media", async (request) => {
     try {
-      
-      const filePath = decodeURIComponent(request.url.slice(8)); 
+      const url = request.url.slice(8); 
+      const urlPath = decodeURIComponent(url);
 
       
+      
+      if (urlPath.startsWith("http://") || urlPath.startsWith("https://")) {
+        logger.info(`[MediaProtocol] Proxying remote: ${urlPath}`);
+        const remoteResponse = await fetch(urlPath, {
+          headers: { "User-Agent": "Mozilla/5.0" }
+        });
+
+        if (!remoteResponse.ok) {
+          logger.error(`[MediaProtocol] Remote fetch failed (${remoteResponse.status}): ${urlPath}`);
+          return new Response("Failed to fetch remote media", { status: remoteResponse.status });
+        }
+
+        const data = await remoteResponse.arrayBuffer();
+        const contentType = remoteResponse.headers.get("Content-Type") || "application/octet-stream";
+
+        return new Response(data, {
+          headers: { "Content-Type": contentType }
+        });
+      }
+
+      
+      const normalizedPath = urlPath.startsWith('/') ? urlPath.slice(1) : urlPath;
+      const appRoot = process.env.APP_ROOT || app.getAppPath();
+      const filePath = path.isAbsolute(urlPath) && fs.existsSync(urlPath)
+        ? urlPath
+        : path.join(appRoot, normalizedPath);
+
+      logger.info(`[MediaProtocol] Requesting local: ${request.url} -> Resolved: ${filePath}`);
+
+      if (!fs.existsSync(filePath)) {
+        logger.error(`[MediaProtocol] File not found: ${filePath}`);
+        return new Response('File not found', { status: 404 });
+      }
+
       const data = await fs.promises.readFile(filePath);
-
-      
       const ext = path.extname(filePath).toLowerCase();
       const mimeTypes: { [key: string]: string } = {
         '.png': 'image/png',
         '.jpg': 'image/jpeg',
         '.jpeg': 'image/jpeg',
         '.webp': 'image/webp',
+        '.mp3': 'audio/mpeg',
+        '.ogg': 'audio/ogg',
+        '.wav': 'audio/wav',
       };
       const mimeType = mimeTypes[ext] || 'application/octet-stream';
 
@@ -302,7 +347,7 @@ app.whenReady().then(() => {
       });
     } catch (error) {
       logger.error('Failed to load media file:', error);
-      return new Response('File not found', { status: 404 });
+      return new Response('Internal error', { status: 500 });
     }
   });
 
@@ -489,6 +534,8 @@ ipcMain.handle("open-external", async (_, url: string) => {
       "dsc.gg",
       "hytale.com",
       "www.hytale.com",
+      "curseforge.com",
+      "www.curseforge.com",
     ]);
     if (!allowedHosts.has(hostname)) {
       throw new Error("Blocked external link");
@@ -553,6 +600,201 @@ ipcMain.handle("list-installed-versions", (_, baseDir: string) => {
 });
 
 
+const getHytaleUserDataDir = () => {
+  const base = app.getPath("userData");
+
+  
+  const metaPath = path.join(base, "meta", "Hytale", "UserData");
+  if (fs.existsSync(metaPath)) return metaPath;
+
+  
+  if (process.platform === "linux") {
+    const xdgBase = process.env["XDG_DATA_HOME"] && path.isAbsolute(process.env["XDG_DATA_HOME"]!)
+      ? process.env["XDG_DATA_HOME"]!
+      : path.join(os.homedir(), ".local", "share");
+    const localSharePath = path.join(xdgBase, "littlegods-launcher", "Hytale", "UserData");
+    if (fs.existsSync(localSharePath)) return localSharePath;
+  }
+
+  
+  return metaPath;
+};
+
+ipcMain.handle("servers:list", async () => {
+  try {
+    const userDataDir = getHytaleUserDataDir();
+    const serverListPath = path.join(userDataDir, "ServerList.json");
+
+    if (!fs.existsSync(serverListPath)) return [];
+
+    const raw = await fs.promises.readFile(serverListPath, "utf-8");
+    const data = JSON.parse(raw);
+    const servers = data.SavedServers || [];
+
+    
+    const guidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    let needsHeal = false;
+
+    const healedServers = servers.map((s: any) => {
+      if (!s.Id || !guidRegex.test(s.Id)) {
+        logger.warn(`Found malformed server ID: "${s.Id}". Healing it with a new GUID.`);
+        needsHeal = true;
+        return { ...s, Id: crypto.randomUUID() };
+      }
+      return s;
+    });
+
+    if (needsHeal) {
+      const updatedData = { SavedServers: healedServers };
+      await fs.promises.writeFile(serverListPath, JSON.stringify(updatedData, null, 2), "utf-8");
+      logger.info("ServerList.json healed and saved.");
+    }
+
+    return healedServers;
+  } catch (err) {
+    logger.error("Failed to read ServerList.json", err);
+    return [];
+  }
+});
+
+ipcMain.handle("servers:save", async (_, servers: any[]) => {
+  try {
+    const userDataDir = getHytaleUserDataDir();
+    const serverListPath = path.join(userDataDir, "ServerList.json");
+
+    if (!fs.existsSync(userDataDir)) {
+      fs.mkdirSync(userDataDir, { recursive: true });
+    }
+
+    const data = { SavedServers: servers };
+    await fs.promises.writeFile(serverListPath, JSON.stringify(data, null, 2), "utf-8");
+    return { success: true };
+  } catch (err) {
+    logger.error("Failed to save ServerList.json", err);
+    return { success: false, error: String(err) };
+  }
+});
+
+ipcMain.handle("game-settings:get", async () => {
+  try {
+    const userDataDir = getHytaleUserDataDir();
+    const settingsPath = path.join(userDataDir, "Settings.json");
+    if (!fs.existsSync(settingsPath)) return null;
+
+    const raw = await fs.promises.readFile(settingsPath, "utf-8");
+    return JSON.parse(raw);
+  } catch (err) {
+    logger.error("Failed to read Settings.json", err);
+    return null;
+  }
+});
+
+ipcMain.handle("game-settings:save", async (_, data: any) => {
+  try {
+    const userDataDir = getHytaleUserDataDir();
+    const settingsPath = path.join(userDataDir, "Settings.json");
+    await fs.promises.writeFile(settingsPath, JSON.stringify(data, null, 2), "utf-8");
+    return { success: true };
+  } catch (err) {
+    logger.error("Failed to save Settings.json", err);
+    return { success: false, error: String(err) };
+  }
+});
+
+ipcMain.handle("saves:list", async () => {
+  try {
+    const userDataDir = getHytaleUserDataDir();
+    const savesPath = path.join(userDataDir, "Saves");
+
+    if (!fs.existsSync(savesPath)) return [];
+
+    const dirs = fs.readdirSync(savesPath).filter(f => fs.statSync(path.join(savesPath, f)).isDirectory());
+    return dirs.map(name => ({
+      name,
+      path: path.join(savesPath, name)
+    }));
+  } catch (err) {
+    logger.error("Failed to list saves", err);
+    return [];
+  }
+});
+
+ipcMain.handle("saves:read-config", async (_, saveName: string) => {
+  try {
+    const userDataDir = getHytaleUserDataDir();
+    const configPath = path.join(userDataDir, "Saves", saveName, "config.json");
+
+    if (!fs.existsSync(configPath)) return { mods: [] };
+
+    const raw = await fs.promises.readFile(configPath, "utf-8");
+    const data = JSON.parse(raw);
+    const enabledMods = Object.entries(data.Mods || {})
+      .filter(([_, val]: [string, any]) => val.Enabled === true)
+      .map(([key, _]) => key);
+
+    return { mods: enabledMods };
+  } catch (err) {
+    logger.error(`Failed to read config.json for save ${saveName}`, err);
+    return { mods: [] };
+  }
+});
+
+ipcMain.handle("saves:save-config", async (_, saveName: string, config: { mods: string[] }) => {
+  try {
+    const userDataDir = getHytaleUserDataDir();
+    const configPath = path.join(userDataDir, "Saves", saveName, "config.json");
+
+    const newConfig: any = { Mods: {} };
+    config.mods.forEach(modName => {
+      newConfig.Mods[modName] = { Enabled: true };
+    });
+
+    await fs.promises.writeFile(configPath, JSON.stringify(newConfig, null, 2), "utf-8");
+    return { success: true };
+  } catch (err) {
+    logger.error(`Failed to save config.json for save ${saveName}`, err);
+    return { success: false, error: String(err) };
+  }
+});
+
+ipcMain.handle("saves:read-warps", async (_, saveName: string) => {
+  try {
+    const userDataDir = getHytaleUserDataDir();
+    const warpsPath = path.join(userDataDir, "Saves", saveName, "universe", "warps.json");
+
+    if (!fs.existsSync(warpsPath)) return [];
+
+    const raw = await fs.promises.readFile(warpsPath, "utf-8");
+    const data = JSON.parse(raw);
+    const warps = (data.Warps || []).map((w: any) => ({
+      name: w.Id || "Unknown",
+      x: w.X || 0,
+      y: w.Y || 0,
+      z: w.Z || 0
+    }));
+    return warps;
+  } catch (err) {
+    logger.error(`Failed to read warps.json for save ${saveName}`, err);
+    return [];
+  }
+});
+
+ipcMain.handle("mods:list-available-to-saves", async () => {
+  try {
+    const userDataDir = getHytaleUserDataDir();
+    const modsPath = path.join(userDataDir, "Mods");
+
+    if (!fs.existsSync(modsPath)) return [];
+
+    const files = await fs.promises.readdir(modsPath);
+    
+    
+    return files.filter(f => f.endsWith(".jar") || f.endsWith(".zip"));
+  } catch (err) {
+    logger.error("Failed to list available mods", err);
+    return [];
+  }
+});
 
 ipcMain.handle("mods:list-installed", (_, baseDir: string) => {
   return listInstalledMods(baseDir);
@@ -566,6 +808,33 @@ ipcMain.handle("mods:download", async (e, baseDir: string, mod: ModInfo) => {
 
 ipcMain.handle("news:get", async () => {
   return await getHytaleNews();
+});
+
+ipcMain.handle("news:get-body", async (_, slug: string) => {
+  return await getHytaleNewsBody(slug);
+});
+
+ipcMain.handle("news:translate", async (_, text: string, targetLang: string, isHtml = false) => {
+  try {
+    const url = `https://translate.googleapis.com/translate_a/t?client=gtx&sl=en&tl=${targetLang}&v=1.0${isHtml ? '&format=html' : ''}`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        "User-Agent": "Mozilla/5.0",
+        "Content-Type": "application/x-www-form-urlencoded"
+      },
+      body: `q=${encodeURIComponent(text)}`
+    });
+    if (!res.ok) {
+      logger.error(`[Translate] HTTP Error: ${res.status}`);
+      return text;
+    }
+    const data = await res.json();
+    return Array.isArray(data) ? data[0] : text;
+  } catch (err) {
+    logger.error("[Translate] Failed:", err);
+    return text;
+  }
 });
 
 ipcMain.handle(
@@ -614,44 +883,6 @@ ipcMain.handle("nix:uninstall", async (e) => {
 });
 
 
-
-autoUpdater.on("checking-for-update", () => {
-  win?.webContents.send("updater:status", { phase: "checking" });
-});
-
-autoUpdater.on("update-available", (info) => {
-  win?.webContents.send("updater:status", { phase: "available", info });
-});
-
-autoUpdater.on("update-not-available", () => {
-  win?.webContents.send("updater:status", { phase: "not-available" });
-});
-
-autoUpdater.on("error", (err) => {
-  win?.webContents.send("updater:status", { phase: "error", error: err.message });
-});
-
-autoUpdater.on("download-progress", (progressObj) => {
-  win?.webContents.send("updater:status", {
-    phase: "downloading",
-    percent: progressObj.percent,
-    bytesPerSecond: progressObj.bytesPerSecond,
-    transferred: progressObj.transferred,
-    total: progressObj.total
-  });
-});
-
-autoUpdater.on("update-downloaded", () => {
-  win?.webContents.send("updater:status", { phase: "downloaded" });
-});
-
-ipcMain.on("updater:check", () => {
-  autoUpdater.checkForUpdatesAndNotify();
-});
-
-ipcMain.on("updater:quit-and-install", () => {
-  autoUpdater.quitAndInstall();
-});
 
 ipcMain.on("install-game", (e, gameDir: string, version: GameVersion) => {
   if (!fs.existsSync(gameDir)) {
@@ -900,3 +1131,18 @@ ipcMain.on(
     }
   },
 );
+
+ipcMain.handle("music:list-files", async () => {
+  try {
+    const appRoot = process.env.APP_ROOT || app.getAppPath();
+    const musicDir = path.join(appRoot, "raw", "music");
+    if (!fs.existsSync(musicDir)) return [];
+
+    const files = await fs.promises.readdir(musicDir);
+    return files.filter(f => /\.(mp3|ogg|wav)$/i.test(f));
+  } catch (err) {
+    logger.error("Failed to list music files", err);
+    return [];
+  }
+});
+

@@ -1,5 +1,6 @@
 import React from "react";
 import { IconX } from "@tabler/icons-react";
+import cn from "../utils/cn";
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -7,6 +8,7 @@ interface ConfirmDialogProps {
   message: string | React.ReactNode;
   confirmText?: string;
   cancelText?: string;
+  showCancel?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 }
@@ -17,6 +19,7 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   message,
   confirmText = "Confirm",
   cancelText = "Cancel",
+  showCancel = true,
   onConfirm,
   onCancel,
 }) => {
@@ -48,13 +51,18 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
         </div>
 
         <div className="flex gap-4">
-          <button
-            onClick={onCancel}
-            className="flex-1 py-4 text-xs font-black tracking-widest uppercase bg-white/5 hover:bg-white/10 rounded-2xl transition-all border border-white/5 text-gray-300 active:scale-95"
-          >{cancelText}</button>
+          {showCancel && (
+            <button
+              onClick={onCancel}
+              className="flex-1 py-4 text-xs font-black tracking-widest uppercase bg-white/5 hover:bg-white/10 rounded-2xl transition-all border border-white/5 text-gray-300 active:scale-95"
+            >{cancelText}</button>
+          )}
           <button
             onClick={onConfirm}
-            className="flex-1 py-4 text-xs font-black tracking-widest uppercase bg-red-600 text-white hover:bg-red-500 rounded-2xl transition-all shadow-[0_4px_16px_rgba(220,38,38,0.3)] active:scale-95"
+            className={cn(
+              "py-4 text-xs font-black tracking-widest uppercase bg-red-600 text-white hover:bg-red-500 rounded-2xl transition-all shadow-[0_4px_16px_rgba(220,38,38,0.3)] active:scale-95",
+              showCancel ? "flex-1" : "w-full"
+            )}
           >{confirmText}</button>
         </div>
       </div>

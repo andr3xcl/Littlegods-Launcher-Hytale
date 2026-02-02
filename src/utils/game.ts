@@ -1,4 +1,4 @@
-const BASE_URL = "https://game-patches.hytale.com/patches";
+const BASE_URL = "http://example.com/patches";
 
 const VERSION_DETAILS_CACHE_KEY = "versionDetailsCache:v1";
 const VERSION_DETAILS_META_KEY = "versionDetailsMeta:v1";

@@ -27,7 +27,7 @@ const postJson = async (
 ): Promise<{ status: number; bodyText: string }> => {
   const u = new URL(url);
   const body = JSON.stringify(payload);
-
+  
 
   const isHttps = u.protocol === "https:";
   const transport = isHttps ? https : http;
@@ -42,7 +42,7 @@ const postJson = async (
     isHttps && insecure
       ? new https.Agent({ rejectUnauthorized: false })
       : undefined;
-
+  
 
   return await new Promise((resolve, reject) => {
     const req = transport.request(
@@ -67,11 +67,11 @@ const postJson = async (
 
     req.on("error", reject);
 
-
+    
     req.setTimeout(timeoutMs, () => {
       req.destroy(new Error("timeout"));
     });
-
+    
 
     req.write(body);
     req.end();
@@ -84,7 +84,7 @@ export const fetchAuthTokens = async (
 ): Promise<AuthTokens> => {
   const authUrl = (process.env.VITE_AUTH_URL || process.env.AUTH_URL || "").trim() ||
     DEFAULT_AUTH_URL;
-
+  
 
   const timeoutMsRaw =
     (process.env.VITE_AUTH_TIMEOUT_MS || process.env.AUTH_TIMEOUT_MS || "").trim();
@@ -103,7 +103,7 @@ export const fetchAuthTokens = async (
       "VITE_AUTH_INSECURE enabled: TLS certificate verification is disabled for auth requests.",
     );
   }
-
+  
 
   try {
     const { status, bodyText } = await postJson(
@@ -131,7 +131,7 @@ export const fetchAuthTokens = async (
         (snippet ? ` Response: ${snippet}` : ""),
       );
     }
-
+    
 
     const identityToken =
       typeof data?.identityToken === "string" ? data.identityToken : null;
@@ -141,7 +141,7 @@ export const fetchAuthTokens = async (
     if (!identityToken || !sessionToken) {
       throw new Error("Auth server JSON missing identityToken/sessionToken.");
     }
-
+    
 
     return { identityToken, sessionToken };
   } catch (e) {
